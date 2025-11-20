@@ -342,7 +342,7 @@ export default function CalculatorPage() {
                     Values assume 1 kg spools. Adjust the table in code if your supplier uses different specs.
                   </p>
                   <div className="mt-3 grid grid-cols-3 gap-2 text-xs">
-                    <div className="font-semibold text-[hsl(var(--foreground))]">Materiali</div>
+                    <div className="font-semibold text-[hsl(var(--foreground))]">Material</div>
                     <div className="font-semibold text-center text-[hsl(var(--foreground))]">1.75 mm</div>
                     <div className="font-semibold text-center text-[hsl(var(--foreground))]">2.85 mm</div>
                     {Object.keys(METERS_PER_KG['1.75']).map((material) => (
@@ -374,7 +374,7 @@ export default function CalculatorPage() {
                   />
                   <NumberField
                     id="profitMargin"
-                    label="Marzhi i fitimit (%)"
+                    label="Profit margin (%)"
                     value={profitMargin}
                     onChange={setProfitMargin}
                     min="0"
@@ -467,7 +467,7 @@ export default function CalculatorPage() {
               </CardHeader>
               <CardContent className="space-y-4">
                 <div className="grid gap-3 sm:grid-cols-2">
-                  <StatCard title="Çmimi final" value={formatCurrency(calculation.finalPrice)} />
+                  <StatCard title="Final price" value={formatCurrency(calculation.finalPrice)} />
                   <StatCard title="Kosto totale" value={formatCurrency(calculation.totalCost)} />
                   <StatCard title="Marketplace fee" value={formatCurrency(calculation.platformFee)} note={platformNote} />
                   <StatCard
@@ -479,7 +479,7 @@ export default function CalculatorPage() {
                 </div>
 
                 <DataSection
-                  title="Detajet e kostos"
+                  title="Cost breakdown"
                   rows={[
                     ['Meters per kg', formatNumber(calculation.metersPerKg, ' m')],
                     ['Total grams on spool', formatNumber(calculation.spoolGrams, ' g')],
@@ -496,7 +496,7 @@ export default function CalculatorPage() {
                 />
 
                 <DataSection
-                  title="Shitja"
+                  title="Sales overview"
                   rows={[
                     ['Final price', formatCurrency(calculation.finalPrice)],
                     [
@@ -510,7 +510,7 @@ export default function CalculatorPage() {
                 />
 
                 <DataSection
-                  title="Analiza e fitimit"
+                  title="Profit analysis"
                   rows={[
                     ['Net profit', formatCurrency(calculation.netProfit)],
                     ['Profit vs cost', formatNumber(calculation.profitVsCost, '%')],

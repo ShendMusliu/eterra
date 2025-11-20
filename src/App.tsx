@@ -5,37 +5,41 @@ import DashboardPage from './pages/DashboardPage';
 import CalculatorPage from './pages/CalculatorPage';
 import ProtectedRoute from './components/ProtectedRoute';
 import { useAuth } from './contexts/AuthContext';
+import { ThemeToggle } from './components/ThemeToggle';
 
 function App() {
   const { isAuthenticated } = useAuth();
 
   return (
-    <Routes>
-      <Route
-        path="/"
-        element={
-          isAuthenticated ? <Navigate to="/dashboard" replace /> : <Navigate to="/login" replace />
-        }
-      />
-      <Route path="/login" element={<LoginPage />} />
-      <Route path="/signup" element={<SignUpPage />} />
-      <Route
-        path="/dashboard"
-        element={
-          <ProtectedRoute>
-            <DashboardPage />
-          </ProtectedRoute>
-        }
-      />
-      <Route
-        path="/calculator"
-        element={
-          <ProtectedRoute>
-            <CalculatorPage />
-          </ProtectedRoute>
-        }
-      />
-    </Routes>
+    <>
+      <ThemeToggle className="fixed right-4 top-4 z-50 backdrop-blur supports-[backdrop-filter]:bg-[hsl(var(--card))]/70" />
+      <Routes>
+        <Route
+          path="/"
+          element={
+            isAuthenticated ? <Navigate to="/dashboard" replace /> : <Navigate to="/login" replace />
+          }
+        />
+        <Route path="/login" element={<LoginPage />} />
+        <Route path="/signup" element={<SignUpPage />} />
+        <Route
+          path="/dashboard"
+          element={
+            <ProtectedRoute>
+              <DashboardPage />
+            </ProtectedRoute>
+          }
+        />
+        <Route
+          path="/calculator"
+          element={
+            <ProtectedRoute>
+              <CalculatorPage />
+            </ProtectedRoute>
+          }
+        />
+      </Routes>
+    </>
   );
 }
 
