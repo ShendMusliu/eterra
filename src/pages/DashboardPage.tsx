@@ -21,13 +21,22 @@ export default function DashboardPage() {
     navigate('/calculator');
   };
 
+  const handleOpenEterraExpenses = () => {
+    navigate('/eterra-expenses');
+  };
+
   return (
     <div className="min-h-screen bg-[hsl(var(--background))]">
       <nav className="border-b border-[hsl(var(--border))] bg-[hsl(var(--card))]">
         <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8">
           <div className="flex justify-between h-16 items-center">
             <div className="flex items-center space-x-4">
-              <h1 className="text-xl font-bold">eterra Dashboard</h1>
+              <span
+                className="text-3xl font-semibold tracking-tight text-[hsl(var(--foreground))]"
+                style={{ fontFamily: 'Poppins, var(--font-sans)' }}
+              >
+                eterra.
+              </span>
             </div>
             <div className="flex items-center space-x-4">
               <span className="text-sm text-[hsl(var(--muted-foreground))]">
@@ -60,7 +69,7 @@ export default function DashboardPage() {
                 <p className="text-sm text-[hsl(var(--muted-foreground))]">
                   View, categorize, and approve expenses tied to the eterra account.
                 </p>
-                <Button variant="outline" className="w-full">
+                <Button variant="outline" className="w-full" onClick={handleOpenEterraExpenses}>
                   Open eterra Expenses
                 </Button>
               </CardContent>
@@ -88,7 +97,7 @@ export default function DashboardPage() {
               </CardHeader>
               <CardContent className="space-y-2">
                 <p className="text-sm text-[hsl(var(--muted-foreground))]">
-                  Run quick financial calculations before committing to a purchase.
+                  Run quick financial calculations before 3D printing.
                 </p>
                 <Button variant="outline" className="w-full" onClick={handleOpenCalculator}>
                   Open Calculator

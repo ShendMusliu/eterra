@@ -4,16 +4,15 @@ import SignUpPage from './pages/SignUpPage';
 import DashboardPage from './pages/DashboardPage';
 import CalculatorPage from './pages/CalculatorPage';
 import PrivateExpensesPage from './pages/PrivateExpensesPage';
+import EterraExpensesPage from './pages/EterraExpensesPage';
 import ProtectedRoute from './components/ProtectedRoute';
 import { useAuth } from './contexts/AuthContext';
-import { ThemeToggle } from './components/ThemeToggle';
 
 function App() {
   const { isAuthenticated } = useAuth();
 
   return (
     <>
-      <ThemeToggle className="fixed right-4 top-4 z-50 backdrop-blur supports-[backdrop-filter]:bg-[hsl(var(--card))]/70" />
       <Routes>
         <Route
           path="/"
@@ -31,22 +30,30 @@ function App() {
             </ProtectedRoute>
           }
         />
-      <Route
-        path="/calculator"
-        element={
-          <ProtectedRoute>
-            <CalculatorPage />
-          </ProtectedRoute>
-        }
-      />
-      <Route
-        path="/private-expenses"
-        element={
-          <ProtectedRoute>
-            <PrivateExpensesPage />
-          </ProtectedRoute>
-        }
-      />
+        <Route
+          path="/calculator"
+          element={
+            <ProtectedRoute>
+              <CalculatorPage />
+            </ProtectedRoute>
+          }
+        />
+        <Route
+          path="/private-expenses"
+          element={
+            <ProtectedRoute>
+              <PrivateExpensesPage />
+            </ProtectedRoute>
+          }
+        />
+        <Route
+          path="/eterra-expenses"
+          element={
+            <ProtectedRoute>
+              <EterraExpensesPage />
+            </ProtectedRoute>
+          }
+        />
       </Routes>
     </>
   );
