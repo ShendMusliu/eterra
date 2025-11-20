@@ -8,7 +8,9 @@
       "Bash(npm cache clean:*)",
       "Bash(npx --yes shadcn@latest init:*)",
       "Bash(git init:*)",
-      "Bash(git add:*)"
+      "Bash(git add:*)",
+      "Bash(git commit -m \"$(cat <<''EOF''\nInitial commit: ETerra app with authentication\n\n- Set up React + Vite + TypeScript\n- Configure Tailwind CSS v4 with Vite plugin\n- Add shadcn/ui components (Button, Card, Input, Label)\n- Implement mock authentication for sandbox development\n- Create login and signup pages\n- Add protected routes and dashboard\n- Configure AWS Amplify Gen 2 backend\n- Add React Router for navigation\n\n🤖 Generated with [Claude Code](https://claude.com/claude-code)\n\nCo-Authored-By: Claude <noreply@anthropic.com>\nEOF\n)\")",
+      "Bash(gh --version:*)"
     ],
     "deny": [],
     "ask": []
