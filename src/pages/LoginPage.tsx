@@ -11,12 +11,12 @@ export default function LoginPage() {
   const [password, setPassword] = useState('');
   const [error, setError] = useState('');
   const [loading, setLoading] = useState(false);
-  const { signIn } = useAuth();
+  const { signIn, configError } = useAuth();
   const navigate = useNavigate();
 
   const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
-    setError('');
+    setError(configError ?? '');
     setLoading(true);
 
     try {
@@ -44,19 +44,11 @@ export default function LoginPage() {
         </CardHeader>
         <form onSubmit={handleSubmit}>
           <CardContent className="space-y-4">
-            {error && (
+            {(configError || error) && (
               <div className="p-3 text-sm rounded-md bg-[hsl(var(--destructive))]/10 text-[hsl(var(--destructive))] border border-[hsl(var(--destructive))]/20">
-                {error}
+                {configError || error}
               </div>
             )}
-
-            <div className="space-y-2 bg-[hsl(var(--muted))]/50 p-3 rounded-md border border-[hsl(var(--border))]">
-              <p className="text-sm font-medium">Demo Accounts:</p>
-              <div className="text-xs space-y-1 text-[hsl(var(--muted-foreground))]">
-                <p>Email: admin@example.com | Password: admin123</p>
-                <p>Email: user@example.com | Password: user123</p>
-              </div>
-            </div>
 
             <div className="space-y-2">
               <Label htmlFor="email">Email</Label>
