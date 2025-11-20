@@ -3,6 +3,7 @@ import LoginPage from './pages/LoginPage';
 import SignUpPage from './pages/SignUpPage';
 import DashboardPage from './pages/DashboardPage';
 import CalculatorPage from './pages/CalculatorPage';
+import PrivateExpensesPage from './pages/PrivateExpensesPage';
 import ProtectedRoute from './components/ProtectedRoute';
 import { useAuth } from './contexts/AuthContext';
 import { ThemeToggle } from './components/ThemeToggle';
@@ -30,14 +31,22 @@ function App() {
             </ProtectedRoute>
           }
         />
-        <Route
-          path="/calculator"
-          element={
-            <ProtectedRoute>
-              <CalculatorPage />
-            </ProtectedRoute>
-          }
-        />
+      <Route
+        path="/calculator"
+        element={
+          <ProtectedRoute>
+            <CalculatorPage />
+          </ProtectedRoute>
+        }
+      />
+      <Route
+        path="/private-expenses"
+        element={
+          <ProtectedRoute>
+            <PrivateExpensesPage />
+          </ProtectedRoute>
+        }
+      />
       </Routes>
     </>
   );

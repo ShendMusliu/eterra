@@ -1,0 +1,34 @@
+{
+  "version": "48.0.0",
+  "files": {
+    "1c8fd7340bf7a33b22b69b141164068082a718a2799fe938e5d1db567b716205": {
+      "displayName": "auth Nested Stack Template",
+      "source": {
+        "path": "amplifyeterraShendMusliusandbox0091e237f9authBD209772.nested.template.json",
+        "packaging": "file"
+      },
+      "destinations": {
+        "current_account-current_region-756ed398": {
+          "bucketName": "cdk-hnb659fds-assets-${AWS::AccountId}-${AWS::Region}",
+          "objectKey": "1c8fd7340bf7a33b22b69b141164068082a718a2799fe938e5d1db567b716205.json",
+          "assumeRoleArn": "arn:${AWS::Partition}:iam::${AWS::AccountId}:role/cdk-hnb659fds-file-publishing-role-${AWS::AccountId}-${AWS::Region}"
+        }
+      }
+    },
+    "2fc651903852543535b822213602f9c5018480837bcca219eefb02b76aabea73": {
+      "displayName": "amplify-eterra-ShendMusliu-sandbox-0091e237f9 Template",
+      "source": {
+        "path": "amplify-eterra-ShendMusliu-sandbox-0091e237f9.template.json",
+        "packaging": "file"
+      },
+      "destinations": {
+        "current_account-current_region-e829334d": {
+          "bucketName": "cdk-hnb659fds-assets-${AWS::AccountId}-${AWS::Region}",
+          "objectKey": "2fc651903852543535b822213602f9c5018480837bcca219eefb02b76aabea73.json",
+          "assumeRoleArn": "arn:${AWS::Partition}:iam::${AWS::AccountId}:role/cdk-hnb659fds-file-publishing-role-${AWS::AccountId}-${AWS::Region}"
+        }
+      }
+    }
+  },
+  "dockerImages": {}
+}

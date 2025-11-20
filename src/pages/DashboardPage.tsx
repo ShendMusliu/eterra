@@ -13,6 +13,10 @@ export default function DashboardPage() {
     navigate('/login');
   };
 
+  const handleOpenPrivateExpenses = () => {
+    navigate('/private-expenses');
+  };
+
   const handleOpenCalculator = () => {
     navigate('/calculator');
   };
@@ -71,7 +75,7 @@ export default function DashboardPage() {
                 <p className="text-sm text-[hsl(var(--muted-foreground))]">
                   Keep personal spending separate while still tracking totals and receipts.
                 </p>
-                <Button variant="outline" className="w-full">
+                <Button variant="outline" className="w-full" onClick={handleOpenPrivateExpenses}>
                   Open Privat Expenses
                 </Button>
               </CardContent>

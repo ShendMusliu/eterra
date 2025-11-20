@@ -29,9 +29,9 @@ const PRINTER_PROFILES = {
 } as const;
 
 const PACKAGING_OPTIONS = [
-  { label: 'No extra packaging (0 €)', value: '0' },
-  { label: 'Basic packaging (0.12 €)', value: '0.12' },
-  { label: 'Full packaging (0.15 €)', value: '0.15' },
+  { label: 'No extra packaging (0 EUR)', value: '0' },
+  { label: 'Basic packaging (0.12 EUR)', value: '0.12' },
+  { label: 'Full packaging (0.15 EUR)', value: '0.15' },
 ];
 
 const PLATFORM_OPTIONS = [
@@ -43,13 +43,13 @@ const PLATFORM_OPTIONS = [
 
 const FIXED_COST = 1.2;
 
-const currencyFormatter = new Intl.NumberFormat('sq-AL', {
+const currencyFormatter = new Intl.NumberFormat('en-US', {
   style: 'currency',
   currency: 'EUR',
   minimumFractionDigits: 2,
 });
 
-const numberFormatter = new Intl.NumberFormat('sq-AL', {
+const numberFormatter = new Intl.NumberFormat('en-US', {
   maximumFractionDigits: 2,
   minimumFractionDigits: 0,
 });
@@ -253,7 +253,7 @@ export default function CalculatorPage() {
     }
 
     if (calculation.platformRate === 0) {
-      tips.push('No marketplace fees — leverage this advantage to offer more competitive pricing.');
+      tips.push('No marketplace fees -- leverage this advantage to offer more competitive pricing.');
     }
 
     if (calculation.energyCostShare > 0.2) {
@@ -268,29 +268,31 @@ export default function CalculatorPage() {
     : 'No marketplace commission.';
 
   return (
-    <div className="min-h-screen bg-[hsl(var(--background))] flex flex-col">
-      <header className="border-b border-[hsl(var(--border))] bg-[hsl(var(--card))]/70 backdrop-blur">
-        <div className="max-w-6xl mx-auto px-4 sm:px-6 lg:px-8 py-6 flex flex-col gap-2 sm:flex-row sm:items-center sm:justify-between">
-          <div>
-            <p className="text-xs uppercase tracking-[0.35em] text-[hsl(var(--muted-foreground))]">eterra</p>
-            <h1 className="text-2xl font-semibold">3D Printing Cost Calculator</h1>
-            <p className="text-sm text-[hsl(var(--muted-foreground))]">
-              Enter your real production costs, selling channel, and desired profit margin.
-            </p>
+    <div className="min-h-screen bg-[hsl(var(--background))] p-4 md:p-8">
+      <div className="mx-auto flex w-full max-w-6xl flex-col gap-6">
+        <header className="rounded-2xl border border-[hsl(var(--border))] bg-[hsl(var(--card))] p-6 shadow-md">
+          <div className="flex flex-col gap-4 md:flex-row md:items-center md:justify-between">
+            <div className="space-y-2">
+              <p className="text-xs uppercase tracking-[0.35em] text-[hsl(var(--muted-foreground))]">eterra</p>
+              <h1 className="text-3xl font-semibold">3D Printing Cost Calculator</h1>
+              <p className="text-[hsl(var(--muted-foreground))]">
+                Enter your actual production costs, selling channel, and target margin in euros.
+              </p>
+            </div>
+            <div className="flex items-center justify-end gap-2">
+              <Button variant="outline" onClick={() => navigate(-1)}>
+                Back
+              </Button>
+              <Button variant="ghost" onClick={() => navigate('/dashboard')}>
+                Dashboard
+              </Button>
+            </div>
           </div>
-          <div className="flex items-center gap-3">
-            <Button variant="ghost" onClick={() => navigate('/dashboard')}>
-              Dashboard
-            </Button>
-            <Button onClick={() => navigate(-1)}>Back</Button>
-          </div>
-        </div>
-      </header>
+        </header>
 
-      <main className="flex-1 py-8 px-4 sm:px-6 lg:px-8 bg-[hsl(var(--background))]">
-        <div className="max-w-6xl mx-auto grid gap-8 lg:grid-cols-[1.1fr_0.9fr]">
+        <div className="grid gap-6 lg:grid-cols-[1.1fr_0.9fr]">
           <section className="space-y-6">
-            <Card>
+            <Card className="shadow-lg">
               <CardHeader>
                 <CardTitle>Filament</CardTitle>
                 <CardDescription>Choose filament type and spool parameters.</CardDescription>
@@ -299,7 +301,7 @@ export default function CalculatorPage() {
                 <div className="grid gap-4 sm:grid-cols-2">
                   <NumberField
                     id="filamentPrice"
-                    label="Filament price (€/spool)"
+                    label="Filament price (EUR/spool)"
                     value={filamentPrice}
                     onChange={setFilamentPrice}
                     min="0"
@@ -315,7 +317,7 @@ export default function CalculatorPage() {
                   />
                 </div>
                 <div className="grid gap-4 sm:grid-cols-2">
-                <SelectField
+                  <SelectField
                     id="filamentDiameter"
                     label="Filament diameter"
                     value={filamentDiameter}
@@ -325,7 +327,7 @@ export default function CalculatorPage() {
                       { label: '2.85 mm', value: '2.85' },
                     ]}
                   />
-                <SelectField
+                  <SelectField
                     id="materialType"
                     label="Material"
                     value={materialType}
@@ -357,7 +359,7 @@ export default function CalculatorPage() {
               </CardContent>
             </Card>
 
-            <Card>
+            <Card className="shadow-lg">
               <CardHeader>
                 <CardTitle>Production & Profit</CardTitle>
                 <CardDescription>Track consumed grams and target profit margin.</CardDescription>
@@ -392,7 +394,7 @@ export default function CalculatorPage() {
               </CardContent>
             </Card>
 
-            <Card>
+            <Card className="shadow-lg">
               <CardHeader>
                 <CardTitle>Energy</CardTitle>
                 <CardDescription>Printer profile and electricity rates.</CardDescription>
@@ -412,7 +414,7 @@ export default function CalculatorPage() {
                 <div className="grid gap-4 sm:grid-cols-3">
                   <NumberField
                     id="energyPrice"
-                    label="Energy price (€/kWh)"
+                    label="Energy price (EUR/kWh)"
                     value={energyPrice}
                     onChange={setEnergyPrice}
                     min="0"
@@ -441,7 +443,7 @@ export default function CalculatorPage() {
               </CardContent>
             </Card>
 
-            <Card>
+            <Card className="shadow-lg">
               <CardHeader>
                 <CardTitle>Selling channel</CardTitle>
                 <CardDescription>Select the commission your final price must cover.</CardDescription>
@@ -460,7 +462,7 @@ export default function CalculatorPage() {
           </section>
 
           <section className="space-y-6">
-            <Card className="bg-[hsl(var(--card))]/90 backdrop-blur shadow-lg">
+            <Card className="bg-[hsl(var(--card))]/90 backdrop-blur shadow-xl">
               <CardHeader>
                 <CardTitle>Pricing summary</CardTitle>
                 <CardDescription>Live outputs based on the inputs above.</CardDescription>
@@ -468,10 +470,10 @@ export default function CalculatorPage() {
               <CardContent className="space-y-4">
                 <div className="grid gap-3 sm:grid-cols-2">
                   <StatCard title="Final price" value={formatCurrency(calculation.finalPrice)} />
-                  <StatCard title="Kosto totale" value={formatCurrency(calculation.totalCost)} />
+                  <StatCard title="Total cost" value={formatCurrency(calculation.totalCost)} />
                   <StatCard title="Marketplace fee" value={formatCurrency(calculation.platformFee)} note={platformNote} />
                   <StatCard
-                    title="Fitimi neto"
+                    title="Net profit"
                     value={formatCurrency(calculation.netProfit)}
                     highlight
                     negative={calculation.netProfit < 0}
@@ -533,7 +535,7 @@ export default function CalculatorPage() {
             </Card>
           </section>
         </div>
-      </main>
+      </div>
     </div>
   );
 }

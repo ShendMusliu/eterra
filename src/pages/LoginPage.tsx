@@ -36,8 +36,14 @@ export default function LoginPage() {
   return (
     <div className="min-h-screen flex items-center justify-center bg-[hsl(var(--background))] p-4">
       <Card className="w-full max-w-md">
-        <CardHeader className="space-y-1">
-          <CardTitle className="text-2xl font-bold text-center">Welcome Back</CardTitle>
+        <CardHeader className="space-y-1 text-center">
+          <p
+            className="font-semibold tracking-tight text-[6.75rem] text-[hsl(var(--foreground))]"
+            style={{ fontFamily: 'Poppins, var(--font-sans)' }}
+          >
+            eterra.
+          </p>
+          <CardTitle className="text-2xl font-bold">Welcome Back</CardTitle>
           <CardDescription className="text-center">
             Enter your credentials to access your account
           </CardDescription>
