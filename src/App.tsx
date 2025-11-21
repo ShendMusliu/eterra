@@ -6,6 +6,7 @@ import CalculatorPage from './pages/CalculatorPage';
 import PrivateExpensesPage from './pages/PrivateExpensesPage';
 import EterraExpensesPage from './pages/EterraExpensesPage';
 import ChangePasswordPage from './pages/ChangePasswordPage';
+import ProfilePage from './pages/ProfilePage';
 import ProtectedRoute from './components/ProtectedRoute';
 import { useAuth } from './contexts/AuthContext';
 
@@ -52,6 +53,14 @@ function App() {
           element={
             <ProtectedRoute>
               <EterraExpensesPage />
+            </ProtectedRoute>
+          }
+        />
+        <Route
+          path="/profile"
+          element={
+            <ProtectedRoute>
+              <ProfilePage />
             </ProtectedRoute>
           }
         />

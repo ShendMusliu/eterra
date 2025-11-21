@@ -13,21 +13,10 @@ export default function DashboardPage() {
     navigate('/login');
   };
 
-  const handleOpenPrivateExpenses = () => {
-    navigate('/private-expenses');
-  };
-
-  const handleOpenCalculator = () => {
-    navigate('/calculator');
-  };
-
-  const handleOpenEterraExpenses = () => {
-    navigate('/eterra-expenses');
-  };
-
-  const handleOpenChangePassword = () => {
-    navigate('/change-password');
-  };
+  const handleOpenPrivateExpenses = () => navigate('/private-expenses');
+  const handleOpenCalculator = () => navigate('/calculator');
+  const handleOpenEterraExpenses = () => navigate('/eterra-expenses');
+  const handleOpenProfile = () => navigate('/profile');
 
   return (
     <div className="min-h-screen bg-[hsl(var(--background))]">
@@ -42,10 +31,20 @@ export default function DashboardPage() {
                 eterra.
               </span>
             </div>
-            <div className="flex items-center space-x-4">
-              <span className="text-sm text-[hsl(var(--muted-foreground))]">
-                {displayName}
-              </span>
+            <div className="flex items-center space-x-3">
+              <Button
+                variant="ghost"
+                className="flex items-center gap-2 px-2 py-1 text-[hsl(var(--foreground))]"
+                onClick={handleOpenProfile}
+              >
+                <span className="inline-flex h-9 w-9 items-center justify-center rounded-full bg-[hsl(var(--primary))]/15 text-sm font-semibold text-[hsl(var(--primary))] uppercase">
+                  {displayName.slice(0, 2)}
+                </span>
+                <div className="text-left leading-tight">
+                  <div className="text-sm font-semibold">{displayName}</div>
+                  <div className="text-xs text-[hsl(var(--muted-foreground))]">View profile</div>
+                </div>
+              </Button>
               <Button variant="outline" onClick={handleSignOut}>
                 Sign Out
               </Button>
@@ -109,20 +108,6 @@ export default function DashboardPage() {
               </CardContent>
             </Card>
 
-            <Card className="hover:shadow-lg transition-shadow">
-              <CardHeader>
-                <CardTitle>Account Security</CardTitle>
-                <CardDescription>Change your password</CardDescription>
-              </CardHeader>
-              <CardContent className="space-y-2">
-                <p className="text-sm text-[hsl(var(--muted-foreground))]">
-                  Update your password to keep your account secure.
-                </p>
-                <Button variant="outline" className="w-full" onClick={handleOpenChangePassword}>
-                  Change Password
-                </Button>
-              </CardContent>
-            </Card>
           </div>
         </div>
       </main>
