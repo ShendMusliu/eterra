@@ -79,8 +79,8 @@ export default function EterraExpensesPage() {
         const purchaseModel = models['EterraPurchase'];
 
         const [salesResult, purchasesResult] = await Promise.all([
-          saleModel?.list?.() ?? { data: [] },
-          purchaseModel?.list?.() ?? { data: [] },
+          saleModel?.list?.({ authMode: 'userPool' }) ?? { data: [] },
+          purchaseModel?.list?.({ authMode: 'userPool' }) ?? { data: [] },
         ]);
 
         const normalizedSales =
@@ -188,20 +188,28 @@ export default function EterraExpensesPage() {
         : saleForm.saleType || 'Privat';
 
     try {
-          const models = dataClient.models as Record<string, any>;
-          const saleModel = models['EterraSale'];
-          const result = await saleModel?.create?.({
-        description: saleForm.description.trim() || 'Sale',
-        saleType,
-        amount: amountValue,
-        shippingCost: shippingValue || undefined,
-        netAfterShipping: Math.max(amountValue - shippingValue, 0),
-        paymentStatus: saleForm.paymentStatus,
-        recordedById: userId,
-        recordedByName: displayName,
-        notes: saleForm.notes.trim() || undefined,
-        timestamp: saleForm.timestamp || new Date().toISOString(),
-      });
+      // Convert datetime-local format (YYYY-MM-DDTHH:mm) to ISO 8601 with seconds
+      const timestampISO = saleForm.timestamp
+        ? new Date(saleForm.timestamp).toISOString()
+        : new Date().toISOString();
+
+      const models = dataClient.models as Record<string, any>;
+      const saleModel = models['EterraSale'];
+      const result = await saleModel?.create?.(
+        {
+          description: saleForm.description.trim() || 'Sale',
+          saleType,
+          amount: amountValue,
+          shippingCost: shippingValue || undefined,
+          netAfterShipping: Math.max(amountValue - shippingValue, 0),
+          paymentStatus: saleForm.paymentStatus,
+          recordedById: userId,
+          recordedByName: displayName,
+          notes: saleForm.notes.trim() || undefined,
+          timestamp: timestampISO,
+        },
+        { authMode: 'userPool' }
+      );
 
       if (result?.data) {
         setSales((current) => [
@@ -244,16 +252,24 @@ export default function EterraExpensesPage() {
     if (!amountValue || amountValue <= 0) return;
 
     try {
-          const models = dataClient.models as Record<string, any>;
-          const purchaseModel = models['EterraPurchase'];
-          const result = await purchaseModel?.create?.({
-        description: purchaseForm.description.trim() || 'Purchase',
-        amount: amountValue,
-        timestamp: purchaseForm.timestamp || new Date().toISOString(),
-        recordedById: userId,
-        recordedByName: displayName,
-        notes: purchaseForm.notes.trim() || undefined,
-      });
+      // Convert datetime-local format (YYYY-MM-DDTHH:mm) to ISO 8601 with seconds
+      const timestampISO = purchaseForm.timestamp
+        ? new Date(purchaseForm.timestamp).toISOString()
+        : new Date().toISOString();
+
+      const models = dataClient.models as Record<string, any>;
+      const purchaseModel = models['EterraPurchase'];
+      const result = await purchaseModel?.create?.(
+        {
+          description: purchaseForm.description.trim() || 'Purchase',
+          amount: amountValue,
+          timestamp: timestampISO,
+          recordedById: userId,
+          recordedByName: displayName,
+          notes: purchaseForm.notes.trim() || undefined,
+        },
+        { authMode: 'userPool' }
+      );
 
       if (result?.data) {
         setPurchases((current) => [

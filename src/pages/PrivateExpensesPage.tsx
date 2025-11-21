@@ -86,8 +86,8 @@ export default function PrivateExpensesPage() {
       try {
         setLoading(true);
         const [expenseResult, repaymentResult] = await Promise.all([
-          dataClient.models.PrivateExpense.list(),
-          dataClient.models.PrivateRepayment.list(),
+          dataClient.models.PrivateExpense.list({ authMode: 'userPool' }),
+          dataClient.models.PrivateRepayment.list({ authMode: 'userPool' }),
         ]);
 
         const normalizedExpenses =
@@ -206,14 +206,22 @@ export default function PrivateExpensesPage() {
     if (!amount || amount <= 0) return;
 
     try {
-      const result = await dataClient.models.PrivateExpense.create({
-        userId,
-        userName: displayName,
-        description: expenseForm.description.trim() || 'Business expense',
-        amount,
-        timestamp: expenseForm.timestamp || new Date().toISOString(),
-        evidenceUrl: expenseForm.evidence.trim() || undefined,
-      });
+      // Convert datetime-local format (YYYY-MM-DDTHH:mm) to ISO 8601 with seconds
+      const timestampISO = expenseForm.timestamp
+        ? new Date(expenseForm.timestamp).toISOString()
+        : new Date().toISOString();
+
+      const result = await dataClient.models.PrivateExpense.create(
+        {
+          userId,
+          userName: displayName,
+          description: expenseForm.description.trim() || 'Business expense',
+          amount,
+          timestamp: timestampISO,
+          evidenceUrl: expenseForm.evidence.trim() || undefined,
+        },
+        { authMode: 'userPool' }
+      );
       const createdExpense = result.data;
       if (createdExpense) {
         setExpenses((current) => [
@@ -247,15 +255,23 @@ export default function PrivateExpensesPage() {
     if (!amount || amount <= 0) return;
 
     try {
-      const result = await dataClient.models.PrivateRepayment.create({
-        payerId: userId,
-        payerName: displayName,
-        recipientId: repaymentForm.recipient,
-        recipientName: repaymentForm.recipient,
-        amount,
-        timestamp: repaymentForm.timestamp || new Date().toISOString(),
-        notes: repaymentForm.notes.trim() || undefined,
-      });
+      // Convert datetime-local format (YYYY-MM-DDTHH:mm) to ISO 8601 with seconds
+      const timestampISO = repaymentForm.timestamp
+        ? new Date(repaymentForm.timestamp).toISOString()
+        : new Date().toISOString();
+
+      const result = await dataClient.models.PrivateRepayment.create(
+        {
+          payerId: userId,
+          payerName: displayName,
+          recipientId: repaymentForm.recipient,
+          recipientName: repaymentForm.recipient,
+          amount,
+          timestamp: timestampISO,
+          notes: repaymentForm.notes.trim() || undefined,
+        },
+        { authMode: 'userPool' }
+      );
       const createdRepayment = result.data;
       if (createdRepayment) {
         setRepayments((current) => [
