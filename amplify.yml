@@ -8,7 +8,7 @@ backend:
     build:
       commands:
         # Explicitly set branch and app id to avoid empty env in Amplify Gen 2
-        - npx ampx pipeline-deploy --branch main --app-id d1fvk6088i0f8w
+        - npx ampx pipeline-deploy --branch main --app-id d1fvk6088i0f8w --outputs-out-dir ./public --outputs-version 1.4
 
 frontend:
   phases:
