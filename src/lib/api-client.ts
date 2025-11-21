@@ -1,4 +1,4 @@
-import { fetchAuthSession, signOut as amplifySignOut } from 'aws-amplify/auth';
+import { fetchAuthSession } from 'aws-amplify/auth';
 import { generateClient } from 'aws-amplify/data';
 import type { Schema } from '../../amplify/data/resource';
 
