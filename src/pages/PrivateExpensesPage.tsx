@@ -105,7 +105,7 @@ export default function PrivateExpensesPage() {
               timestamp: item.timestamp,
               evidenceUrl: item.evidenceUrl ?? undefined,
             }))
-            .sort((a, b) => (a.timestamp < b.timestamp ? 1 : -1)) ?? [];
+            .sort((a: ExpenseRecord, b: ExpenseRecord) => (a.timestamp < b.timestamp ? 1 : -1)) ?? [];
 
         const normalizedRepayments =
           repaymentResult?.data
@@ -119,7 +119,7 @@ export default function PrivateExpensesPage() {
               timestamp: item.timestamp,
               notes: item.notes ?? undefined,
             }))
-            .sort((a, b) => (a.timestamp < b.timestamp ? 1 : -1)) ?? [];
+            .sort((a: RepaymentRecord, b: RepaymentRecord) => (a.timestamp < b.timestamp ? 1 : -1)) ?? [];
 
         setExpenses(normalizedExpenses);
         setRepayments(normalizedRepayments);

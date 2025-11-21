@@ -98,7 +98,7 @@ export default function EterraExpensesPage() {
               notes: item.notes ?? undefined,
               timestamp: item.timestamp,
             }))
-            .sort((a, b) => (a.timestamp < b.timestamp ? 1 : -1)) ?? [];
+            .sort((a: Sale, b: Sale) => (a.timestamp < b.timestamp ? 1 : -1)) ?? [];
 
         const normalizedPurchases =
           purchasesResult?.data
@@ -111,7 +111,7 @@ export default function EterraExpensesPage() {
               recordedByName: item.recordedByName,
               notes: item.notes ?? undefined,
             }))
-            .sort((a, b) => (a.timestamp < b.timestamp ? 1 : -1)) ?? [];
+            .sort((a: Purchase, b: Purchase) => (a.timestamp < b.timestamp ? 1 : -1)) ?? [];
 
         setSales(normalizedSales);
         setPurchases(normalizedPurchases);
