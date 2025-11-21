@@ -5,7 +5,7 @@ import { Button } from '@/components/ui/button';
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from '@/components/ui/card';
 import { Input } from '@/components/ui/input';
 import { Label } from '@/components/ui/label';
-import { dataClient } from '@/lib/api-client';
+import { assertNoDataErrors, dataClient } from '@/lib/api-client';
 
 type Sale = {
   id: string;
@@ -82,6 +82,8 @@ export default function EterraExpensesPage() {
           saleModel?.list?.({ authMode: 'userPool' }) ?? { data: [] },
           purchaseModel?.list?.({ authMode: 'userPool' }) ?? { data: [] },
         ]);
+        assertNoDataErrors(salesResult);
+        assertNoDataErrors(purchasesResult);
 
         const normalizedSales =
           salesResult?.data
@@ -210,6 +212,7 @@ export default function EterraExpensesPage() {
         },
         { authMode: 'userPool' }
       );
+      assertNoDataErrors(result);
 
       if (result?.data) {
         setSales((current) => [
@@ -270,6 +273,7 @@ export default function EterraExpensesPage() {
         },
         { authMode: 'userPool' }
       );
+      assertNoDataErrors(result);
 
       if (result?.data) {
         setPurchases((current) => [

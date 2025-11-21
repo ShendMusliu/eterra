@@ -5,7 +5,7 @@ import { Card, CardContent, CardDescription, CardHeader, CardTitle } from '@/com
 import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
 import { Label } from '@/components/ui/label';
-import { dataClient } from '@/lib/api-client';
+import { assertNoDataErrors, dataClient } from '@/lib/api-client';
 
 const MEMBERS = ['Shend Musliu', 'Lorik Syla', 'Gentrit Haziri'] as const;
 type MemberName = (typeof MEMBERS)[number];
@@ -89,6 +89,8 @@ export default function PrivateExpensesPage() {
           dataClient.models.PrivateExpense.list({ authMode: 'userPool' }),
           dataClient.models.PrivateRepayment.list({ authMode: 'userPool' }),
         ]);
+        assertNoDataErrors(expenseResult);
+        assertNoDataErrors(repaymentResult);
 
         const normalizedExpenses =
           expenseResult?.data
@@ -222,6 +224,7 @@ export default function PrivateExpensesPage() {
         },
         { authMode: 'userPool' }
       );
+      assertNoDataErrors(result);
       const createdExpense = result.data;
       if (createdExpense) {
         setExpenses((current) => [
@@ -272,6 +275,7 @@ export default function PrivateExpensesPage() {
         },
         { authMode: 'userPool' }
       );
+      assertNoDataErrors(result);
       const createdRepayment = result.data;
       if (createdRepayment) {
         setRepayments((current) => [
