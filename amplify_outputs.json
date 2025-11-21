@@ -1,8 +1,8 @@
 {
   "auth": {
-    "user_pool_id": "eu-central-1_m2MFY55Of",
+    "user_pool_id": "eu-central-1_b4vfisPhH",
     "aws_region": "eu-central-1",
-    "user_pool_client_id": "1jd2c1e7f837679666kaubibu3",
+    "user_pool_client_id": "6gfova6a1hehad4ir29q44g8bk",
     "identity_pool_id": "eu-central-1:bd631d85-1957-430b-b5e4-63dfb8e9b3a1",
     "mfa_methods": [],
     "standard_required_attributes": [
