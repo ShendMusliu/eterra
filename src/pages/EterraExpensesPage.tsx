@@ -1,4 +1,3 @@
-
 import { useEffect, useMemo, useState } from 'react';
 import { useNavigate } from 'react-router-dom';
 import { useAuth } from '@/contexts/AuthContext';
@@ -6,48 +5,31 @@ import { Button } from '@/components/ui/button';
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from '@/components/ui/card';
 import { Input } from '@/components/ui/input';
 import { Label } from '@/components/ui/label';
+import { dataClient } from '@/lib/api-client';
 
-const SALE_TYPES = [
-  { label: 'Privat (in-person)', value: 'Privat' },
-  { label: 'GjirafaMall', value: 'GjirafaMall' },
-  { label: 'Other channel', value: 'other' },
-];
-
-const PAYMENT_OPTIONS = [
-  { label: 'Received', value: 'received' },
-  { label: 'Pending', value: 'pending' },
-];
-
-const STORAGE_KEY = 'eterra_expenses_ledger';
-
-interface SaleRecord {
+type Sale = {
   id: string;
-  timestamp: string;
   description: string;
-  amount: number;
   saleType: string;
+  amount: number;
   shippingCost?: number;
   netAfterShipping: number;
-  paymentStatus: 'received' | 'pending';
-  notes?: string;
+  paymentStatus: string; // 'pending' | 'received'
   recordedById: string;
   recordedByName: string;
-}
-
-interface PurchaseRecord {
-  id: string;
+  notes?: string;
   timestamp: string;
+};
+
+type Purchase = {
+  id: string;
   description: string;
   amount: number;
-  notes?: string;
+  timestamp: string;
   recordedById: string;
   recordedByName: string;
-}
-
-interface Ledger {
-  sales: SaleRecord[];
-  purchases: PurchaseRecord[];
-}
+  notes?: string;
+};
 
 const currencyFormatter = new Intl.NumberFormat('en-US', {
   style: 'currency',
@@ -57,30 +39,7 @@ const currencyFormatter = new Intl.NumberFormat('en-US', {
 
 const formatCurrency = (value: number) => currencyFormatter.format(value);
 const formatDate = (value: string) => new Date(value).toLocaleString();
-const getDefaultTimestamp = () => new Date().toISOString().slice(0, 16);
-
-const getDateKey = (value: string | Date) => {
-  const date = typeof value === 'string' ? new Date(value) : value;
-  const year = date.getFullYear();
-  const month = String(date.getMonth() + 1).padStart(2, '0');
-  const day = String(date.getDate()).padStart(2, '0');
-  return `${year}-${month}-${day}`;
-};
-
-const buildTrend = <T,>(items: T[], getTimestamp: (record: T) => string, getValue: (record: T) => number) => {
-  const today = new Date();
-  const values = Array.from({ length: 7 }, (_, index) => {
-    const day = new Date(today);
-    day.setDate(day.getDate() - (6 - index));
-    const key = getDateKey(day);
-    const total = items.reduce((sum, item) => {
-      return getDateKey(getTimestamp(item)) === key ? sum + getValue(item) : sum;
-    }, 0);
-    return total;
-  });
-  const max = Math.max(...values, 1);
-  return values.map((value) => (value / max) * 100);
-};
+const getInitialDateInput = () => new Date().toISOString().slice(0, 16);
 
 export default function EterraExpensesPage() {
   const { user } = useAuth();
@@ -88,121 +47,81 @@ export default function EterraExpensesPage() {
   const displayName = user?.name || user?.email || 'Unknown member';
   const userId = user?.id || displayName;
 
-  const [ledger, setLedger] = useState<Ledger>({ sales: [], purchases: [] });
-  const [initialized, setInitialized] = useState(false);
+  const [sales, setSales] = useState<Sale[]>([]);
+  const [purchases, setPurchases] = useState<Purchase[]>([]);
+  const [loading, setLoading] = useState(true);
+  const [error, setError] = useState<string | null>(null);
 
   const [saleForm, setSaleForm] = useState({
-    timestamp: getDefaultTimestamp(),
+    timestamp: getInitialDateInput(),
     description: '',
     amount: '',
-    saleType: SALE_TYPES[0].value,
+    saleType: 'Privat',
     customSaleType: '',
     shippingCost: '',
-    paymentStatus: PAYMENT_OPTIONS[0].value,
+    paymentStatus: 'pending',
     notes: '',
   });
 
   const [purchaseForm, setPurchaseForm] = useState({
-    timestamp: getDefaultTimestamp(),
+    timestamp: getInitialDateInput(),
     description: '',
     amount: '',
     notes: '',
   });
 
   useEffect(() => {
-    const stored = typeof window !== 'undefined' ? localStorage.getItem(STORAGE_KEY) : null;
-    if (stored) {
+    const fetchData = async () => {
       try {
-        const parsed: Ledger = JSON.parse(stored);
-        setLedger({
-          sales: parsed.sales ?? [],
-          purchases: parsed.purchases ?? [],
-        });
-      } catch (error) {
-        console.error('Failed to parse eterra ledger', error);
+        setLoading(true);
+        const [salesResult, purchasesResult] = await Promise.all([
+          dataClient.models.EterraSale.list(),
+          dataClient.models.EterraPurchase.list(),
+        ]);
+
+        const normalizedSales =
+          salesResult?.data
+            ?.map((item) => ({
+              id: item.id,
+              description: item.description,
+              saleType: item.saleType,
+              amount: item.amount,
+              shippingCost: item.shippingCost ?? 0,
+              netAfterShipping: item.netAfterShipping,
+              paymentStatus: item.paymentStatus ?? 'pending',
+              recordedById: item.recordedById,
+              recordedByName: item.recordedByName,
+              notes: item.notes ?? undefined,
+              timestamp: item.timestamp,
+            }))
+            .sort((a, b) => (a.timestamp < b.timestamp ? 1 : -1)) ?? [];
+
+        const normalizedPurchases =
+          purchasesResult?.data
+            ?.map((item) => ({
+              id: item.id,
+              description: item.description,
+              amount: item.amount,
+              timestamp: item.timestamp,
+              recordedById: item.recordedById,
+              recordedByName: item.recordedByName,
+              notes: item.notes ?? undefined,
+            }))
+            .sort((a, b) => (a.timestamp < b.timestamp ? 1 : -1)) ?? [];
+
+        setSales(normalizedSales);
+        setPurchases(normalizedPurchases);
+        setError(null);
+      } catch (err) {
+        console.error('Failed to load data', err);
+        setError('Failed to load data. Please try again.');
+      } finally {
+        setLoading(false);
       }
-    }
-    setInitialized(true);
+    };
+
+    void fetchData();
   }, []);
-
-  useEffect(() => {
-    if (!initialized) {
-      return;
-    }
-    localStorage.setItem(STORAGE_KEY, JSON.stringify(ledger));
-  }, [ledger, initialized]);
-
-  const resolvedSaleType = saleForm.saleType === 'other'
-    ? saleForm.customSaleType.trim() || 'Other'
-    : saleForm.saleType;
-
-  const saleNetPreview = Math.max(
-    (parseFloat(saleForm.amount) || 0) - (parseFloat(saleForm.shippingCost) || 0),
-    0,
-  );
-
-  const handleAddSale = (event: React.FormEvent) => {
-    event.preventDefault();
-    const amountValue = parseFloat(saleForm.amount);
-    if (!amountValue || amountValue <= 0) {
-      return;
-    }
-    const shippingValue = parseFloat(saleForm.shippingCost) || 0;
-    const record: SaleRecord = {
-      id: crypto.randomUUID(),
-      timestamp: saleForm.timestamp || new Date().toISOString(),
-      description: saleForm.description.trim() || 'Sale',
-      amount: amountValue,
-      saleType: resolvedSaleType,
-      shippingCost: shippingValue || undefined,
-      netAfterShipping: Math.max(amountValue - shippingValue, 0),
-      paymentStatus: saleForm.paymentStatus as 'received' | 'pending',
-      notes: saleForm.notes.trim() || undefined,
-      recordedById: userId,
-      recordedByName: displayName,
-    };
-    setLedger((previous) => ({
-      ...previous,
-      sales: [record, ...previous.sales],
-    }));
-    setSaleForm({
-      timestamp: getDefaultTimestamp(),
-      description: '',
-      amount: '',
-      saleType: SALE_TYPES[0].value,
-      customSaleType: '',
-      shippingCost: '',
-      paymentStatus: PAYMENT_OPTIONS[0].value,
-      notes: '',
-    });
-  };
-
-  const handleAddPurchase = (event: React.FormEvent) => {
-    event.preventDefault();
-    const amountValue = parseFloat(purchaseForm.amount);
-    if (!amountValue || amountValue <= 0) {
-      return;
-    }
-    const record: PurchaseRecord = {
-      id: crypto.randomUUID(),
-      timestamp: purchaseForm.timestamp || new Date().toISOString(),
-      description: purchaseForm.description.trim() || 'Purchase',
-      amount: amountValue,
-      notes: purchaseForm.notes.trim() || undefined,
-      recordedById: userId,
-      recordedByName: displayName,
-    };
-    setLedger((previous) => ({
-      ...previous,
-      purchases: [record, ...previous.purchases],
-    }));
-    setPurchaseForm({
-      timestamp: getDefaultTimestamp(),
-      description: '',
-      amount: '',
-      notes: '',
-    });
-  };
 
   const summary = useMemo(() => {
     const now = new Date();
@@ -211,20 +130,20 @@ export default function EterraExpensesPage() {
       return date.getMonth() === now.getMonth() && date.getFullYear() === now.getFullYear();
     };
 
-    const monthlySales = ledger.sales.filter((sale) => isCurrentMonth(sale.timestamp));
-    const monthlyPurchases = ledger.purchases.filter((purchase) => isCurrentMonth(purchase.timestamp));
+    const monthlySales = sales.filter((sale) => isCurrentMonth(sale.timestamp));
+    const monthlyPurchases = purchases.filter((purchase) => isCurrentMonth(purchase.timestamp));
 
     const monthlyRevenue = monthlySales.reduce((sum, sale) => sum + sale.netAfterShipping, 0);
-    const pendingReceivables = ledger.sales
+    const pendingReceivables = monthlySales
       .filter((sale) => sale.paymentStatus === 'pending')
       .reduce((sum, sale) => sum + sale.netAfterShipping, 0);
     const monthlySpend = monthlyPurchases.reduce((sum, purchase) => sum + purchase.amount, 0);
     const shippingCostsMonth = monthlySales.reduce((sum, sale) => sum + (sale.shippingCost ?? 0), 0);
 
-    const totalReceived = ledger.sales
+    const totalReceived = sales
       .filter((sale) => sale.paymentStatus === 'received')
       .reduce((sum, sale) => sum + sale.netAfterShipping, 0);
-    const totalPurchases = ledger.purchases.reduce((sum, purchase) => sum + purchase.amount, 0);
+    const totalPurchases = purchases.reduce((sum, purchase) => sum + purchase.amount, 0);
     const cashBox = totalReceived - totalPurchases;
 
     const channelTotals = monthlySales.reduce<Record<string, number>>((acc, sale) => {
@@ -233,61 +152,132 @@ export default function EterraExpensesPage() {
     }, {});
 
     const channelBreakdown = Object.entries(channelTotals)
-      .map(([channel, value]) => ({
-        channel,
-        value,
-      }))
+      .map(([channel, value]) => ({ channel, value }))
       .sort((a, b) => b.value - a.value);
 
-    const bestSale = ledger.sales.reduce<SaleRecord | null>((current, sale) => {
+    const bestSale = sales.reduce<Sale | null>((current, sale) => {
       if (!current || sale.netAfterShipping > current.netAfterShipping) {
         return sale;
       }
       return current;
     }, null);
 
-    const revenueTrend = buildTrend(ledger.sales, (sale) => sale.timestamp, (sale) => sale.netAfterShipping);
-    const pendingTrend = buildTrend(
-      ledger.sales.filter((sale) => sale.paymentStatus === 'pending'),
-      (sale) => sale.timestamp,
-      (sale) => sale.netAfterShipping,
-    );
-    const spendTrend = buildTrend(ledger.purchases, (purchase) => purchase.timestamp, (purchase) => purchase.amount);
-
     return {
       monthlyRevenue,
-      monthlySalesCount: monthlySales.length,
       pendingReceivables,
       monthlySpend,
       shippingCostsMonth,
       cashBox,
       channelBreakdown,
       bestSale,
-      revenueTrend,
-      pendingTrend,
-      spendTrend,
     };
-  }, [ledger]);
+  }, [sales, purchases]);
 
-  const actionItems = useMemo(() => {
-    const tasks: string[] = [];
-    if (summary.pendingReceivables > 0) {
-      tasks.push('Follow up on pending invoices to turn them into cash.');
-    }
-    if (summary.shippingCostsMonth > summary.monthlyRevenue * 0.2) {
-      tasks.push('Shipping is consuming more than 20% of net revenue this month. Double-check carrier rates.');
-    }
-    if ((summary.bestSale?.netAfterShipping || 0) > summary.monthlyRevenue * 0.4) {
-      tasks.push('One sale makes up a large share of revenue. Diversify channels to reduce risk.');
-    }
-    if (!tasks.length) {
-      tasks.push('Everything is on track. Keep logging sales and purchases for accurate reporting.');
-    }
-    return tasks;
-  }, [summary]);
+  const handleAddSale = async (event: React.FormEvent) => {
+    event.preventDefault();
+    const amountValue = parseFloat(saleForm.amount);
+    if (!amountValue || amountValue <= 0) return;
+    const shippingValue = parseFloat(saleForm.shippingCost) || 0;
+    const saleType =
+      saleForm.saleType === 'other'
+        ? saleForm.customSaleType.trim() || 'Other'
+        : saleForm.saleType || 'Privat';
 
-  const recentSales = ledger.sales.slice(0, 5);
-  const recentPurchases = ledger.purchases.slice(0, 5);
+    try {
+      const result = await dataClient.models.EterraSale.create({
+        description: saleForm.description.trim() || 'Sale',
+        saleType,
+        amount: amountValue,
+        shippingCost: shippingValue || undefined,
+        netAfterShipping: Math.max(amountValue - shippingValue, 0),
+        paymentStatus: saleForm.paymentStatus,
+        recordedById: userId,
+        recordedByName: displayName,
+        notes: saleForm.notes.trim() || undefined,
+        timestamp: saleForm.timestamp || new Date().toISOString(),
+      });
+
+      if (result?.data) {
+        setSales((current) => [
+          {
+            id: result.data.id,
+            description: result.data.description,
+            saleType: result.data.saleType,
+            amount: result.data.amount,
+            shippingCost: result.data.shippingCost ?? 0,
+            netAfterShipping: result.data.netAfterShipping,
+            paymentStatus: result.data.paymentStatus,
+            recordedById: result.data.recordedById,
+            recordedByName: result.data.recordedByName,
+            notes: result.data.notes ?? undefined,
+            timestamp: result.data.timestamp,
+          },
+          ...current,
+        ]);
+      }
+
+      setSaleForm({
+        timestamp: getInitialDateInput(),
+        description: '',
+        amount: '',
+        saleType: 'Privat',
+        customSaleType: '',
+        shippingCost: '',
+        paymentStatus: 'pending',
+        notes: '',
+      });
+    } catch (err) {
+      console.error('Failed to save sale', err);
+      setError('Failed to save sale. Please try again.');
+    }
+  };
+
+  const handleAddPurchase = async (event: React.FormEvent) => {
+    event.preventDefault();
+    const amountValue = parseFloat(purchaseForm.amount);
+    if (!amountValue || amountValue <= 0) return;
+
+    try {
+      const result = await dataClient.models.EterraPurchase.create({
+        description: purchaseForm.description.trim() || 'Purchase',
+        amount: amountValue,
+        timestamp: purchaseForm.timestamp || new Date().toISOString(),
+        recordedById: userId,
+        recordedByName: displayName,
+        notes: purchaseForm.notes.trim() || undefined,
+      });
+
+      if (result?.data) {
+        setPurchases((current) => [
+          {
+            id: result.data.id,
+            description: result.data.description,
+            amount: result.data.amount,
+            timestamp: result.data.timestamp,
+            recordedById: result.data.recordedById,
+            recordedByName: result.data.recordedByName,
+            notes: result.data.notes ?? undefined,
+          },
+          ...current,
+        ]);
+      }
+
+      setPurchaseForm({
+        timestamp: getInitialDateInput(),
+        description: '',
+        amount: '',
+        notes: '',
+      });
+    } catch (err) {
+      console.error('Failed to save purchase', err);
+      setError('Failed to save purchase. Please try again.');
+    }
+  };
+
+  const saleNetPreview = Math.max(
+    (parseFloat(saleForm.amount) || 0) - (parseFloat(saleForm.shippingCost) || 0),
+    0,
+  );
 
   return (
     <div className="min-h-screen bg-[hsl(var(--background))] p-4 md:p-8">
@@ -317,23 +307,21 @@ export default function EterraExpensesPage() {
           <MetricCard
             title="Revenue this month"
             value={formatCurrency(summary.monthlyRevenue)}
-            subtitle={`${summary.monthlySalesCount} logged sales`}
-            trend={summary.revenueTrend}
-            accent="from-[hsl(var(--primary))]/70 to-transparent"
+            subtitle={`${sales.length} logged sales`}
           />
           <MetricCard
             title="Pending receivables"
             value={formatCurrency(summary.pendingReceivables)}
             subtitle="Waiting to be collected"
-            trend={summary.pendingTrend}
-            accent="from-orange-400/60 to-transparent"
           />
           <MetricCard
             title="Cash box after spend"
             value={formatCurrency(summary.cashBox)}
-            subtitle={summary.monthlySpend ? `${formatCurrency(summary.monthlySpend)} spent this month` : 'No spend recorded this month'}
-            trend={summary.spendTrend}
-            accent="from-emerald-400/60 to-transparent"
+            subtitle={
+              summary.monthlySpend
+                ? `${formatCurrency(summary.monthlySpend)} spent this month`
+                : 'No spend recorded this month'
+            }
           />
         </section>
 
@@ -344,6 +332,11 @@ export default function EterraExpensesPage() {
               <CardDescription>Capture every sale, shipping cost, and payment status.</CardDescription>
             </CardHeader>
             <CardContent>
+              {error && (
+                <div className="mb-3 rounded-md border border-[hsl(var(--destructive))]/30 bg-[hsl(var(--destructive))]/10 p-3 text-sm text-[hsl(var(--destructive))]">
+                  {error}
+                </div>
+              )}
               <form className="space-y-4" onSubmit={handleAddSale}>
                 <div className="space-y-2">
                   <Label htmlFor="sale-timestamp">Date & time</Label>
@@ -389,7 +382,8 @@ export default function EterraExpensesPage() {
                       onChange={(event) => setSaleForm((current) => ({ ...current, shippingCost: event.target.value }))}
                     />
                     <p className="text-xs text-[hsl(var(--muted-foreground))]">
-                      Net after shipping: <span className="font-semibold text-[hsl(var(--foreground))]">{formatCurrency(saleNetPreview)}</span>
+                      Net after shipping:{' '}
+                      <span className="font-semibold text-[hsl(var(--foreground))]">{formatCurrency(saleNetPreview)}</span>
                     </p>
                   </div>
                 </div>
@@ -402,11 +396,9 @@ export default function EterraExpensesPage() {
                       value={saleForm.saleType}
                       onChange={(event) => setSaleForm((current) => ({ ...current, saleType: event.target.value }))}
                     >
-                      {SALE_TYPES.map((option) => (
-                        <option key={option.value} value={option.value}>
-                          {option.label}
-                        </option>
-                      ))}
+                      <option value="Privat">Privat (in-person)</option>
+                      <option value="GjirafaMall">GjirafaMall</option>
+                      <option value="other">Other channel</option>
                     </select>
                   </div>
                   <div className="space-y-2">
@@ -417,11 +409,8 @@ export default function EterraExpensesPage() {
                       value={saleForm.paymentStatus}
                       onChange={(event) => setSaleForm((current) => ({ ...current, paymentStatus: event.target.value }))}
                     >
-                      {PAYMENT_OPTIONS.map((option) => (
-                        <option key={option.value} value={option.value}>
-                          {option.label}
-                        </option>
-                      ))}
+                      <option value="pending">Pending</option>
+                      <option value="received">Received</option>
                     </select>
                   </div>
                 </div>
@@ -517,12 +506,24 @@ export default function EterraExpensesPage() {
               </CardHeader>
               <CardContent>
                 <ul className="space-y-2 text-sm text-[hsl(var(--muted-foreground))]">
-                  {actionItems.map((item) => (
-                    <li key={item} className="flex items-start gap-2">
+                  {summary.pendingReceivables > 0 && (
+                    <li className="flex items-start gap-2">
                       <span className="mt-1 h-2 w-2 rounded-full bg-[hsl(var(--primary))]" />
-                      <span>{item}</span>
+                      <span>Follow up on pending invoices to turn them into cash.</span>
                     </li>
-                  ))}
+                  )}
+                  {summary.shippingCostsMonth > summary.monthlyRevenue * 0.2 && (
+                    <li className="flex items-start gap-2">
+                      <span className="mt-1 h-2 w-2 rounded-full bg-[hsl(var(--primary))]" />
+                      <span>Shipping is consuming more than 20% of net revenue this month. Double-check carrier rates.</span>
+                    </li>
+                  )}
+                  {!summary.pendingReceivables && summary.shippingCostsMonth <= summary.monthlyRevenue * 0.2 && (
+                    <li className="flex items-start gap-2">
+                      <span className="mt-1 h-2 w-2 rounded-full bg-[hsl(var(--primary))]" />
+                      <span>Everything is on track. Keep logging sales and purchases for accurate reporting.</span>
+                    </li>
+                  )}
                 </ul>
               </CardContent>
             </Card>
@@ -603,12 +604,16 @@ export default function EterraExpensesPage() {
               <CardDescription>Newest entries first. Includes pending receivables.</CardDescription>
             </CardHeader>
             <CardContent className="space-y-3">
-              {recentSales.length === 0 ? (
+              {loading ? (
+                <p className="rounded-md border border-dashed border-[hsl(var(--border))] p-3 text-sm text-[hsl(var(--muted-foreground))]">
+                  Loading...
+                </p>
+              ) : sales.length === 0 ? (
                 <p className="rounded-md border border-dashed border-[hsl(var(--border))] p-3 text-sm text-[hsl(var(--muted-foreground))]">
                   No sales logged yet.
                 </p>
               ) : (
-                recentSales.map((sale) => (
+                sales.slice(0, 5).map((sale) => (
                   <article key={sale.id} className="rounded-xl border border-[hsl(var(--border))] bg-[hsl(var(--card))]/70 p-3">
                     <div className="flex items-center justify-between text-sm">
                       <span className="font-medium">{sale.description}</span>
@@ -633,12 +638,16 @@ export default function EterraExpensesPage() {
               <CardDescription>Track outgoing cash to keep the box healthy.</CardDescription>
             </CardHeader>
             <CardContent className="space-y-3">
-              {recentPurchases.length === 0 ? (
+              {loading ? (
+                <p className="rounded-md border border-dashed border-[hsl(var(--border))] p-3 text-sm text-[hsl(var(--muted-foreground))]">
+                  Loading...
+                </p>
+              ) : purchases.length === 0 ? (
                 <p className="rounded-md border border-dashed border-[hsl(var(--border))] p-3 text-sm text-[hsl(var(--muted-foreground))]">
                   No purchases logged yet.
                 </p>
               ) : (
-                recentPurchases.map((purchase) => (
+                purchases.slice(0, 5).map((purchase) => (
                   <article key={purchase.id} className="rounded-xl border border-[hsl(var(--border))] bg-[hsl(var(--card))]/70 p-3">
                     <div className="flex items-center justify-between text-sm">
                       <span className="font-medium">{purchase.description}</span>
@@ -658,19 +667,7 @@ export default function EterraExpensesPage() {
   );
 }
 
-function MetricCard({
-  title,
-  value,
-  subtitle,
-  trend,
-  accent,
-}: {
-  title: string;
-  value: string;
-  subtitle: string;
-  trend: number[];
-  accent: string;
-}) {
+function MetricCard({ title, value, subtitle }: { title: string; value: string; subtitle: string }) {
   return (
     <Card className="shadow-sm">
       <CardHeader>
@@ -678,17 +675,6 @@ function MetricCard({
         <p className="text-2xl font-semibold text-[hsl(var(--foreground))]">{value}</p>
         <CardDescription>{subtitle}</CardDescription>
       </CardHeader>
-      <CardContent>
-        <div className={`flex h-16 items-end gap-1 rounded-xl bg-[hsl(var(--muted))]/30 p-2`}>
-          {trend.map((height, index) => (
-            <span
-              key={index}
-              className={`flex-1 rounded-full bg-gradient-to-t ${accent}`}
-              style={{ height: `${Math.max(height, 8)}%` }}
-            />
-          ))}
-        </div>
-      </CardContent>
     </Card>
   );
 }

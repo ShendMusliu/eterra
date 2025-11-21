@@ -7,8 +7,7 @@ import { a, defineData } from '@aws-amplify/backend';
  * - PrivateExpense: personal business expenses (Shend/Lorik/Gentrit).
  * - PrivateRepayment: repayments between members.
  */
-export const data = defineData({
-  schema: a.schema({
+export const schema = a.schema({
     EterraSale: a
       .model({
         description: a.string().required(),
@@ -59,6 +58,12 @@ export const data = defineData({
       })
       .authorization((allow) => [allow.authenticated(), allow.owner(), allow.group('admin')]),
   }),
+});
+
+export type Schema = typeof schema;
+
+export const data = defineData({
+  schema,
   authorizationModes: {
     defaultAuthorizationMode: 'userPool',
     apiKeyAuthorizationMode: {

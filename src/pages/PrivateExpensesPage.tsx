@@ -1,10 +1,11 @@
-import { useState, useEffect, useMemo } from 'react';
+import { useEffect, useMemo, useState } from 'react';
 import { useNavigate } from 'react-router-dom';
 import { useAuth } from '@/contexts/AuthContext';
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from '@/components/ui/card';
 import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
 import { Label } from '@/components/ui/label';
+import { dataClient } from '@/lib/api-client';
 
 const MEMBERS = ['Shend Musliu', 'Lorik Syla', 'Gentrit Haziri'] as const;
 type MemberName = (typeof MEMBERS)[number];
@@ -16,7 +17,7 @@ type ExpenseRecord = {
   description: string;
   amount: number;
   timestamp: string;
-  evidence?: string;
+  evidenceUrl?: string;
 };
 
 type RepaymentRecord = {
@@ -30,12 +31,6 @@ type RepaymentRecord = {
   notes?: string;
 };
 
-type Ledger = {
-  expenses: ExpenseRecord[];
-  repayments: RepaymentRecord[];
-};
-
-const STORAGE_KEY = 'private_expenses_ledger';
 const currencyFormatter = new Intl.NumberFormat('en-US', {
   style: 'currency',
   currency: 'EUR',
@@ -44,21 +39,17 @@ const currencyFormatter = new Intl.NumberFormat('en-US', {
 
 const formatCurrency = (value: number) => currencyFormatter.format(value);
 const formatDate = (value: string) => new Date(value).toLocaleString();
-
 const getInitialDateInput = () => new Date().toISOString().slice(0, 16);
 
 export default function PrivateExpensesPage() {
   const { user } = useAuth();
   const navigate = useNavigate();
+
   const canonicalizeMember = (raw?: string | null): MemberName => {
     const value = raw?.toLowerCase().trim();
-    if (!value) {
-      return MEMBERS[0];
-    }
+    if (!value) return MEMBERS[0];
     const exact = MEMBERS.find((member) => member.toLowerCase() === value);
-    if (exact) {
-      return exact;
-    }
+    if (exact) return exact;
     const match = MEMBERS.find((member) => value.includes(member.split(' ')[0].toLowerCase()));
     return match ?? MEMBERS[0];
   };
@@ -66,8 +57,10 @@ export default function PrivateExpensesPage() {
   const displayName = canonicalizeMember(user?.name ?? user?.email?.split('@')[0] ?? undefined);
   const userId = user?.id || displayName;
 
-  const [ledger, setLedger] = useState<Ledger>({ expenses: [], repayments: [] });
-  const [initialized, setInitialized] = useState(false);
+  const [expenses, setExpenses] = useState<ExpenseRecord[]>([]);
+  const [repayments, setRepayments] = useState<RepaymentRecord[]>([]);
+  const [loading, setLoading] = useState(true);
+  const [error, setError] = useState<string | null>(null);
 
   const [expenseForm, setExpenseForm] = useState({
     timestamp: getInitialDateInput(),
@@ -88,45 +81,60 @@ export default function PrivateExpensesPage() {
     notes: '',
   });
 
-  const canonicalizeExpense = (expense: ExpenseRecord): ExpenseRecord => ({
-    ...expense,
-    userName: canonicalizeMember(expense.userName),
-  });
-
-  const canonicalizeRepayment = (repayment: RepaymentRecord): RepaymentRecord => ({
-    ...repayment,
-    payerName: canonicalizeMember(repayment.payerName),
-    recipientName: canonicalizeMember(repayment.recipientName),
-    recipientId: canonicalizeMember(repayment.recipientName),
-  });
-
   useEffect(() => {
-    const stored = typeof window !== 'undefined' ? localStorage.getItem(STORAGE_KEY) : null;
-    if (stored) {
+    const fetchData = async () => {
       try {
-        const parsed: Ledger = JSON.parse(stored);
-        setLedger({
-          expenses: parsed.expenses?.map(canonicalizeExpense) ?? [],
-          repayments: parsed.repayments?.map(canonicalizeRepayment) ?? [],
-        });
-      } catch (error) {
-        console.error('Failed to parse private expenses ledger', error);
-      }
-    }
-    setInitialized(true);
-  }, []);
+        setLoading(true);
+        const [expenseResult, repaymentResult] = await Promise.all([
+          dataClient.models.PrivateExpense.list(),
+          dataClient.models.PrivateRepayment.list(),
+        ]);
 
-  useEffect(() => {
-    if (!initialized) {
-      return;
-    }
-    localStorage.setItem(STORAGE_KEY, JSON.stringify(ledger));
-  }, [ledger, initialized]);
+        const normalizedExpenses =
+          expenseResult?.data
+            ?.map((item) => ({
+              id: item.id,
+              userId: item.userId,
+              userName: canonicalizeMember(item.userName),
+              description: item.description,
+              amount: item.amount,
+              timestamp: item.timestamp,
+              evidenceUrl: item.evidenceUrl ?? undefined,
+            }))
+            .sort((a, b) => (a.timestamp < b.timestamp ? 1 : -1)) ?? [];
+
+        const normalizedRepayments =
+          repaymentResult?.data
+            ?.map((item) => ({
+              id: item.id,
+              payerId: item.payerId,
+              payerName: canonicalizeMember(item.payerName),
+              recipientId: canonicalizeMember(item.recipientId),
+              recipientName: canonicalizeMember(item.recipientName),
+              amount: item.amount,
+              timestamp: item.timestamp,
+              notes: item.notes ?? undefined,
+            }))
+            .sort((a, b) => (a.timestamp < b.timestamp ? 1 : -1)) ?? [];
+
+        setExpenses(normalizedExpenses);
+        setRepayments(normalizedRepayments);
+        setError(null);
+      } catch (err) {
+        console.error('Failed to load expenses/repayments', err);
+        setError('Failed to load data. Please try again.');
+      } finally {
+        setLoading(false);
+      }
+    };
+
+    void fetchData();
+  }, []);
 
   const participantNames = MEMBERS;
 
   const summary = useMemo(() => {
-    const totalExpenses = ledger.expenses.reduce((sum, expense) => sum + expense.amount, 0);
+    const totalExpenses = expenses.reduce((sum, expense) => sum + expense.amount, 0);
     const sharePerPerson = participantNames.length > 0 ? totalExpenses / participantNames.length : 0;
 
     const aggregates = participantNames.reduce<Record<string, { paid: number; repaid: number; received: number }>>(
@@ -137,12 +145,12 @@ export default function PrivateExpensesPage() {
       {},
     );
 
-    ledger.expenses.forEach((expense) => {
+    expenses.forEach((expense) => {
       aggregates[expense.userName] = aggregates[expense.userName] ?? { paid: 0, repaid: 0, received: 0 };
       aggregates[expense.userName].paid += expense.amount;
     });
 
-    ledger.repayments.forEach((repayment) => {
+    repayments.forEach((repayment) => {
       aggregates[repayment.payerName] = aggregates[repayment.payerName] ?? { paid: 0, repaid: 0, received: 0 };
       aggregates[repayment.recipientName] =
         aggregates[repayment.recipientName] ?? { paid: 0, repaid: 0, received: 0 };
@@ -190,61 +198,88 @@ export default function PrivateExpensesPage() {
       netBalances,
       settlements,
     };
-  }, [ledger, participantNames]);
+  }, [expenses, repayments, participantNames]);
 
-  const handleAddExpense = (event: React.FormEvent) => {
+  const handleAddExpense = async (event: React.FormEvent) => {
     event.preventDefault();
     const amount = parseFloat(expenseForm.amount);
-    if (!amount || amount <= 0) {
-      return;
+    if (!amount || amount <= 0) return;
+
+    try {
+      const result = await dataClient.models.PrivateExpense.create({
+        userId,
+        userName: displayName,
+        description: expenseForm.description.trim() || 'Business expense',
+        amount,
+        timestamp: expenseForm.timestamp || new Date().toISOString(),
+        evidenceUrl: expenseForm.evidence.trim() || undefined,
+      });
+      if (result?.data) {
+        setExpenses((current) => [
+          {
+            id: result.data.id,
+            userId: result.data.userId,
+            userName: canonicalizeMember(result.data.userName),
+            description: result.data.description,
+            amount: result.data.amount,
+            timestamp: result.data.timestamp,
+            evidenceUrl: result.data.evidenceUrl ?? undefined,
+          },
+          ...current,
+        ]);
+      }
+      setExpenseForm({
+        timestamp: getInitialDateInput(),
+        description: '',
+        amount: '',
+        evidence: '',
+      });
+    } catch (err) {
+      console.error('Failed to save expense', err);
+      setError('Failed to save expense. Please try again.');
     }
-    const record: ExpenseRecord = {
-      id: crypto.randomUUID(),
-      userId,
-      userName: displayName,
-      description: expenseForm.description.trim() || 'Business expense',
-      amount,
-      timestamp: expenseForm.timestamp || new Date().toISOString(),
-      evidence: expenseForm.evidence.trim() || undefined,
-    };
-    setLedger((previous) => ({
-      ...previous,
-      expenses: [record, ...previous.expenses],
-    }));
-    setExpenseForm({
-      timestamp: getInitialDateInput(),
-      description: '',
-      amount: '',
-      evidence: '',
-    });
   };
 
-  const handleAddRepayment = (event: React.FormEvent) => {
+  const handleAddRepayment = async (event: React.FormEvent) => {
     event.preventDefault();
     const amount = parseFloat(repaymentForm.amount);
-    if (!amount || amount <= 0) {
-      return;
+    if (!amount || amount <= 0) return;
+
+    try {
+      const result = await dataClient.models.PrivateRepayment.create({
+        payerId: userId,
+        payerName: displayName,
+        recipientId: repaymentForm.recipient,
+        recipientName: repaymentForm.recipient,
+        amount,
+        timestamp: repaymentForm.timestamp || new Date().toISOString(),
+        notes: repaymentForm.notes.trim() || undefined,
+      });
+      if (result?.data) {
+        setRepayments((current) => [
+          {
+            id: result.data.id,
+            payerId: result.data.payerId,
+            payerName: canonicalizeMember(result.data.payerName),
+            recipientId: canonicalizeMember(result.data.recipientId),
+            recipientName: canonicalizeMember(result.data.recipientName),
+            amount: result.data.amount,
+            timestamp: result.data.timestamp,
+            notes: result.data.notes ?? undefined,
+          },
+          ...current,
+        ]);
+      }
+      setRepaymentForm((current) => ({
+        timestamp: getInitialDateInput(),
+        recipient: current.recipient,
+        amount: '',
+        notes: '',
+      }));
+    } catch (err) {
+      console.error('Failed to save repayment', err);
+      setError('Failed to save repayment. Please try again.');
     }
-    const record: RepaymentRecord = {
-      id: crypto.randomUUID(),
-      payerId: userId,
-      payerName: displayName,
-      recipientName: repaymentForm.recipient,
-      recipientId: repaymentForm.recipient,
-      amount,
-      timestamp: repaymentForm.timestamp || new Date().toISOString(),
-      notes: repaymentForm.notes.trim() || undefined,
-    };
-    setLedger((previous) => ({
-      ...previous,
-      repayments: [record, ...previous.repayments],
-    }));
-    setRepaymentForm((current) => ({
-      timestamp: getInitialDateInput(),
-      recipient: current.recipient,
-      amount: '',
-      notes: '',
-    }));
   };
 
   const settlementsSummary =
@@ -291,6 +326,11 @@ export default function PrivateExpensesPage() {
               <CardDescription>Record purchases you covered on behalf of the team.</CardDescription>
             </CardHeader>
             <CardContent>
+              {error && (
+                <div className="mb-3 rounded-md border border-[hsl(var(--destructive))]/30 bg-[hsl(var(--destructive))]/10 p-3 text-sm text-[hsl(var(--destructive))]">
+                  {error}
+                </div>
+              )}
               <form onSubmit={handleAddExpense} className="space-y-4">
                 <div className="space-y-2">
                   <Label htmlFor="expense-timestamp">Date & time</Label>
@@ -312,7 +352,7 @@ export default function PrivateExpensesPage() {
                   />
                 </div>
                 <div className="space-y-2">
-                  <Label htmlFor="expense-amount">Amount (€)</Label>
+                  <Label htmlFor="expense-amount">Amount (EUR)</Label>
                   <Input
                     id="expense-amount"
                     type="number"
@@ -378,7 +418,7 @@ export default function PrivateExpensesPage() {
                   </select>
                 </div>
                 <div className="space-y-2">
-                  <Label htmlFor="repayment-amount">Amount (€)</Label>
+                  <Label htmlFor="repayment-amount">Amount (EUR)</Label>
                   <Input
                     id="repayment-amount"
                     type="number"
@@ -467,7 +507,7 @@ export default function PrivateExpensesPage() {
             <CardContent className="space-y-2">
               {settlementsSummary[0]?.amount === 0 ? (
                 <div className="rounded-md border border-dashed border-[hsl(var(--border))] p-3 text-sm text-[hsl(var(--muted-foreground))]">
-                  Everyone is settled up! 🎉
+                  Everyone is settled up!
                 </div>
               ) : (
                 summary.settlements.map((entry) => (
@@ -488,15 +528,19 @@ export default function PrivateExpensesPage() {
           <Card className="shadow-sm">
             <CardHeader>
               <CardTitle>Recent Expenses</CardTitle>
-              <CardDescription>Newest submissions appear first.</CardDescription>
+              <CardDescription>Newest entries appear first.</CardDescription>
             </CardHeader>
             <CardContent className="space-y-3">
-              {ledger.expenses.length === 0 ? (
+              {loading ? (
+                <div className="rounded-md border border-dashed border-[hsl(var(--border))] p-3 text-sm text-[hsl(var(--muted-foreground))]">
+                  Loading...
+                </div>
+              ) : expenses.length === 0 ? (
                 <div className="rounded-md border border-dashed border-[hsl(var(--border))] p-3 text-sm text-[hsl(var(--muted-foreground))]">
                   No expenses logged yet.
                 </div>
               ) : (
-                ledger.expenses.slice(0, 5).map((expense) => (
+                expenses.slice(0, 5).map((expense) => (
                   <div
                     key={expense.id}
                     className="rounded-xl border border-[hsl(var(--border))] bg-[hsl(var(--card))]/70 p-3 shadow-sm"
@@ -509,9 +553,9 @@ export default function PrivateExpensesPage() {
                     <p className="text-lg font-semibold text-[hsl(var(--foreground))]">
                       {formatCurrency(expense.amount)}
                     </p>
-                    {expense.evidence && (
+                    {expense.evidenceUrl && (
                       <a
-                        href={expense.evidence}
+                        href={expense.evidenceUrl}
                         target="_blank"
                         rel="noreferrer"
                         className="text-xs text-[hsl(var(--primary))] underline"
@@ -531,12 +575,16 @@ export default function PrivateExpensesPage() {
               <CardDescription>Track returned amounts between members.</CardDescription>
             </CardHeader>
             <CardContent className="space-y-3">
-              {ledger.repayments.length === 0 ? (
+              {loading ? (
+                <div className="rounded-md border border-dashed border-[hsl(var(--border))] p-3 text-sm text-[hsl(var(--muted-foreground))]">
+                  Loading...
+                </div>
+              ) : repayments.length === 0 ? (
                 <div className="rounded-md border border-dashed border-[hsl(var(--border))] p-3 text-sm text-[hsl(var(--muted-foreground))]">
                   No repayments recorded yet.
                 </div>
               ) : (
-                ledger.repayments.slice(0, 5).map((repayment) => (
+                repayments.slice(0, 5).map((repayment) => (
                   <div
                     key={repayment.id}
                     className="rounded-xl border border-[hsl(var(--border))] bg-[hsl(var(--card))]/70 p-3 shadow-sm"
@@ -551,7 +599,9 @@ export default function PrivateExpensesPage() {
                     <p className="text-lg font-semibold text-[hsl(var(--foreground))]">
                       {formatCurrency(repayment.amount)}
                     </p>
-                    {repayment.notes && <p className="text-sm text-[hsl(var(--muted-foreground))]">{repayment.notes}</p>}
+                    {repayment.notes && (
+                      <p className="text-sm text-[hsl(var(--muted-foreground))]">{repayment.notes}</p>
+                    )}
                   </div>
                 ))
               )}
