@@ -82,6 +82,14 @@ export default function PrivateExpensesPage() {
   });
 
   useEffect(() => {
+    // Keep recipient set to "someone else" if the logged-in member changes
+    setRepaymentForm((current) => ({
+      ...current,
+      recipient: MEMBERS.find((member) => member !== displayName) ?? current.recipient,
+    }));
+  }, [displayName]);
+
+  useEffect(() => {
     const fetchData = async () => {
       if (!user) {
         setLoading(false);
@@ -263,6 +271,10 @@ export default function PrivateExpensesPage() {
     event.preventDefault();
     const amount = parseFloat(repaymentForm.amount);
     if (!amount || amount <= 0) return;
+    if (repaymentForm.recipient === displayName) {
+      setError('Zgjedh dikë tjetër për ta rimbursuar.');
+      return;
+    }
 
     try {
       // Convert datetime-local format (YYYY-MM-DDTHH:mm) to ISO 8601 with seconds
@@ -412,7 +424,7 @@ export default function PrivateExpensesPage() {
           <Card className="shadow-lg">
             <CardHeader>
               <CardTitle>Log Repayment</CardTitle>
-              <CardDescription>Track when you reimburse Lorik or Gentrit (or vice versa).</CardDescription>
+              <CardDescription>Shëno kur rimburson Lorikun ose Gentritin — vetëm ti si pagues mund ta regjistrosh.</CardDescription>
             </CardHeader>
             <CardContent>
               <form onSubmit={handleAddRepayment} className="space-y-4">
