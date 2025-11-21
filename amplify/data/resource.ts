@@ -22,8 +22,8 @@ export const data = defineData({
         recordedByName: a.string().required(),
         notes: a.string(),
         timestamp: a.datetime().required(),
-      })
-      .authorization((allow) => [allow.owner(), allow.group('admin')]),
+        })
+      .authorization((allow) => [allow.authenticated(), allow.owner(), allow.group('admin')]),
 
     EterraPurchase: a
       .model({
@@ -34,7 +34,7 @@ export const data = defineData({
         recordedByName: a.string().required(),
         notes: a.string(),
       })
-      .authorization((allow) => [allow.owner(), allow.group('admin')]),
+      .authorization((allow) => [allow.authenticated(), allow.owner(), allow.group('admin')]),
 
     PrivateExpense: a
       .model({
@@ -45,7 +45,7 @@ export const data = defineData({
         userName: a.string().required(),
         evidenceUrl: a.string(),
       })
-      .authorization((allow) => [allow.owner(), allow.group('admin')]),
+      .authorization((allow) => [allow.authenticated(), allow.owner(), allow.group('admin')]),
 
     PrivateRepayment: a
       .model({
@@ -57,7 +57,7 @@ export const data = defineData({
         timestamp: a.datetime().required(),
         notes: a.string(),
       })
-      .authorization((allow) => [allow.owner(), allow.group('admin')]),
+      .authorization((allow) => [allow.authenticated(), allow.owner(), allow.group('admin')]),
   }),
   authorizationModes: {
     defaultAuthorizationMode: 'userPool',
