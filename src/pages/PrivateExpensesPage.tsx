@@ -132,7 +132,8 @@ export default function PrivateExpensesPage() {
         setError(null);
       } catch (err) {
         console.error('Failed to load expenses/repayments', err);
-        if ((err as Error)?.name === 'UserUnAuthenticatedException') {
+        const message = (err as Error)?.message ?? '';
+        if ((err as Error)?.name === 'UserUnAuthenticatedException' || message.includes('Unauthorized')) {
           await amplifySignOut();
           navigate('/login');
           return;
@@ -261,6 +262,12 @@ export default function PrivateExpensesPage() {
       });
     } catch (err) {
       console.error('Failed to save expense', err);
+      const message = (err as Error)?.message ?? '';
+      if ((err as Error)?.name === 'UserUnAuthenticatedException' || message.includes('Unauthorized')) {
+        await amplifySignOut();
+        navigate('/login');
+        return;
+      }
       setError('Failed to save expense. Please try again.');
     }
   };
@@ -313,6 +320,12 @@ export default function PrivateExpensesPage() {
       }));
     } catch (err) {
       console.error('Failed to save repayment', err);
+      const message = (err as Error)?.message ?? '';
+      if ((err as Error)?.name === 'UserUnAuthenticatedException' || message.includes('Unauthorized')) {
+        await amplifySignOut();
+        navigate('/login');
+        return;
+      }
       setError('Failed to save repayment. Please try again.');
     }
   };

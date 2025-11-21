@@ -128,7 +128,8 @@ export default function EterraExpensesPage() {
         setError(null);
       } catch (err) {
         console.error('Failed to load data', err);
-        if ((err as Error)?.name === 'UserUnAuthenticatedException') {
+        const message = (err as Error)?.message ?? '';
+        if ((err as Error)?.name === 'UserUnAuthenticatedException' || message.includes('Unauthorized')) {
           await amplifySignOut();
           navigate('/login');
           return;
@@ -258,6 +259,12 @@ export default function EterraExpensesPage() {
       });
     } catch (err) {
       console.error('Failed to save sale', err);
+      const message = (err as Error)?.message ?? '';
+      if ((err as Error)?.name === 'UserUnAuthenticatedException' || message.includes('Unauthorized')) {
+        await amplifySignOut();
+        navigate('/login');
+        return;
+      }
       setError('Failed to save sale. Please try again.');
     }
   };
@@ -311,6 +318,12 @@ export default function EterraExpensesPage() {
       });
     } catch (err) {
       console.error('Failed to save purchase', err);
+      const message = (err as Error)?.message ?? '';
+      if ((err as Error)?.name === 'UserUnAuthenticatedException' || message.includes('Unauthorized')) {
+        await amplifySignOut();
+        navigate('/login');
+        return;
+      }
       setError('Failed to save purchase. Please try again.');
     }
   };
