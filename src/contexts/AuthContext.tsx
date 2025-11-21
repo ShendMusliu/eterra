@@ -4,6 +4,7 @@ import {
   confirmSignUp as amplifyConfirmSignUp,
   fetchUserAttributes,
   getCurrentUser,
+  fetchAuthSession,
   signIn as amplifySignIn,
   signOut as amplifySignOut,
   signUp as amplifySignUp,
@@ -100,6 +101,8 @@ export const AuthProvider = ({ children }: { children: ReactNode }) => {
 
   const checkAuth = async () => {
     try {
+      // Attempt to refresh tokens to keep session across refreshes.
+      await fetchAuthSession({ forceRefresh: false });
       const profile = await buildUserFromAmplify();
       setUser(profile);
     } catch (error) {
