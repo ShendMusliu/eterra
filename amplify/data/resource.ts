@@ -57,7 +57,6 @@ const schema = a.schema({
         notes: a.string(),
       })
       .authorization((allow) => [allow.authenticated(), allow.owner(), allow.group('admin')]),
-  }),
 });
 
 export type Schema = typeof schema;
