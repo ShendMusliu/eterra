@@ -87,9 +87,45 @@ export const AuthProvider = ({ children }: { children: ReactNode }) => {
   };
 
   const signIn = async (email: string, password: string): Promise<AuthActionResult> => {
+    const normalizedEmail = email.trim().toLowerCase();
+
+    // If someone is already signed in, reuse that session when it matches or clear it before signing in again.
+    const ensureFreshSession = async (): Promise<AuthActionResult | null> => {
+      try {
+        const current = await getCurrentUser();
+        const attributes = await fetchUserAttributes().catch(() => ({}));
+        const mapped = mapAmplifyUser(current, attributes as Record<string, string>);
+        if (mapped?.email?.toLowerCase() === normalizedEmail) {
+          setUser(mapped);
+          return { success: true };
+        }
+        await amplifySignOut();
+      } catch {
+        // No active session or fetch failed; proceed to sign in normally.
+      }
+      return null;
+    };
+
+    const maybeExistingSession = await ensureFreshSession();
+    if (maybeExistingSession) {
+      return maybeExistingSession;
+    }
 
     try {
-      const result = (await amplifySignIn({ username: email, password })) as SignInOutput;
+      const attemptSignIn = async () => (await amplifySignIn({ username: email, password })) as SignInOutput;
+
+      let result: SignInOutput;
+      try {
+        result = await attemptSignIn();
+      } catch (error) {
+        const message = error instanceof Error ? error.message : '';
+        if (message.includes('already a user') || message.includes('signed in')) {
+          await amplifySignOut();
+          result = await attemptSignIn();
+        } else {
+          throw error;
+        }
+      }
 
       if (result.isSignedIn) {
         const profile = await buildUserFromAmplify();
