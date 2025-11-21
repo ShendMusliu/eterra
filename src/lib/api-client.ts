@@ -1,4 +1,4 @@
-import { fetchAuthSession } from 'aws-amplify/auth';
+import { fetchAuthSession, signOut as amplifySignOut } from 'aws-amplify/auth';
 import { generateClient } from 'aws-amplify/data';
 import type { Schema } from '../../amplify/data/resource';
 
@@ -15,5 +15,12 @@ export const assertNoDataErrors = (result: { errors?: { message?: string }[] } |
 
 // Ensure we have a valid auth session before hitting the Data API.
 export const ensureAuthSession = async () => {
-  await fetchAuthSession();
+  // Force refresh to avoid stale/expired tokens
+  try {
+    await fetchAuthSession({ forceRefresh: true });
+  } catch (error) {
+    console.error('Auth session refresh failed', error);
+    // Surface the error; callers decide how to handle (do not auto sign out here)
+    throw error;
+  }
 };
