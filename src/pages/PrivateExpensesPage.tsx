@@ -85,13 +85,9 @@ export default function PrivateExpensesPage() {
     const fetchData = async () => {
       try {
         setLoading(true);
-        const models = dataClient.models as Record<string, any>;
-        const expenseModel = models['PrivateExpense'];
-        const repaymentModel = models['PrivateRepayment'];
-
         const [expenseResult, repaymentResult] = await Promise.all([
-          expenseModel?.list?.() ?? { data: [] },
-          repaymentModel?.list?.() ?? { data: [] },
+          dataClient.models.PrivateExpense.list(),
+          dataClient.models.PrivateRepayment.list(),
         ]);
 
         const normalizedExpenses =
@@ -210,9 +206,7 @@ export default function PrivateExpensesPage() {
     if (!amount || amount <= 0) return;
 
     try {
-      const models = dataClient.models as Record<string, any>;
-      const expenseModel = models['PrivateExpense'];
-      const result = await expenseModel?.create?.({
+      const result = await dataClient.models.PrivateExpense.create({
         userId,
         userName: displayName,
         description: expenseForm.description.trim() || 'Business expense',
@@ -252,9 +246,7 @@ export default function PrivateExpensesPage() {
     if (!amount || amount <= 0) return;
 
     try {
-      const models = dataClient.models as Record<string, any>;
-      const repaymentModel = models['PrivateRepayment'];
-      const result = await repaymentModel?.create?.({
+      const result = await dataClient.models.PrivateRepayment.create({
         payerId: userId,
         payerName: displayName,
         recipientId: repaymentForm.recipient,

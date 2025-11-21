@@ -22,14 +22,10 @@ dist-ssr
 *.njsproj
 *.sln
 *.sw?
-.claude/
 
-# Amplify
-amplify/.config
-.amplify-hosting
-amplify_outputs.json
-ampx.config.json
-.env.local
-.env
+# amplify
+.amplify
+amplify_outputs*
+amplifyconfiguration*
 
-.amplify/
+side-prompt.txt

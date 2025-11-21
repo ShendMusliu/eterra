@@ -1,4 +1,4 @@
-import { a, defineData } from '@aws-amplify/backend';
+import { type ClientSchema, a, defineData } from '@aws-amplify/backend';
 
 /**
  * Data models backing the app:
@@ -8,58 +8,58 @@ import { a, defineData } from '@aws-amplify/backend';
  * - PrivateRepayment: repayments between members.
  */
 const schema = a.schema({
-    EterraSale: a
-      .model({
-        description: a.string().required(),
-        saleType: a.string().required(), // e.g., Privat, GjirafaMall, Other
-        amount: a.float().required(),
-        shippingCost: a.float().default(0),
-        netAfterShipping: a.float().required(),
-        // Store as string; enforce allowed values at the application layer.
-        paymentStatus: a.string().required(),
-        recordedById: a.string().required(),
-        recordedByName: a.string().required(),
-        notes: a.string(),
-        timestamp: a.datetime().required(),
-        })
-      .authorization((allow) => [allow.authenticated(), allow.owner(), allow.group('admin')]),
+  EterraSale: a
+    .model({
+      description: a.string().required(),
+      saleType: a.string().required(), // e.g., Privat, GjirafaMall, Other
+      amount: a.float().required(),
+      shippingCost: a.float().default(0),
+      netAfterShipping: a.float().required(),
+      // Store as string; enforce allowed values at the application layer.
+      paymentStatus: a.string().required(),
+      recordedById: a.string().required(),
+      recordedByName: a.string().required(),
+      notes: a.string(),
+      timestamp: a.datetime().required(),
+    })
+    .authorization((allow) => [allow.authenticated(), allow.owner(), allow.group('admin')]),
 
-    EterraPurchase: a
-      .model({
-        description: a.string().required(),
-        amount: a.float().required(),
-        timestamp: a.datetime().required(),
-        recordedById: a.string().required(),
-        recordedByName: a.string().required(),
-        notes: a.string(),
-      })
-      .authorization((allow) => [allow.authenticated(), allow.owner(), allow.group('admin')]),
+  EterraPurchase: a
+    .model({
+      description: a.string().required(),
+      amount: a.float().required(),
+      timestamp: a.datetime().required(),
+      recordedById: a.string().required(),
+      recordedByName: a.string().required(),
+      notes: a.string(),
+    })
+    .authorization((allow) => [allow.authenticated(), allow.owner(), allow.group('admin')]),
 
-    PrivateExpense: a
-      .model({
-        description: a.string().required(),
-        amount: a.float().required(),
-        timestamp: a.datetime().required(),
-        userId: a.string().required(),
-        userName: a.string().required(),
-        evidenceUrl: a.string(),
-      })
-      .authorization((allow) => [allow.authenticated(), allow.owner(), allow.group('admin')]),
+  PrivateExpense: a
+    .model({
+      description: a.string().required(),
+      amount: a.float().required(),
+      timestamp: a.datetime().required(),
+      userId: a.string().required(),
+      userName: a.string().required(),
+      evidenceUrl: a.string(),
+    })
+    .authorization((allow) => [allow.authenticated(), allow.owner(), allow.group('admin')]),
 
-    PrivateRepayment: a
-      .model({
-        payerId: a.string().required(),
-        payerName: a.string().required(),
-        recipientId: a.string().required(),
-        recipientName: a.string().required(),
-        amount: a.float().required(),
-        timestamp: a.datetime().required(),
-        notes: a.string(),
-      })
-      .authorization((allow) => [allow.authenticated(), allow.owner(), allow.group('admin')]),
+  PrivateRepayment: a
+    .model({
+      payerId: a.string().required(),
+      payerName: a.string().required(),
+      recipientId: a.string().required(),
+      recipientName: a.string().required(),
+      amount: a.float().required(),
+      timestamp: a.datetime().required(),
+      notes: a.string(),
+    })
+    .authorization((allow) => [allow.authenticated(), allow.owner(), allow.group('admin')]),
 });
 
-export type Schema = typeof schema;
+export type Schema = ClientSchema<typeof schema>;
 
 export const data = defineData({
   schema,

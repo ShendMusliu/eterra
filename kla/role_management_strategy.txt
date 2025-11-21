@@ -1,0 +1,42 @@
+# Role Management Strategy
+
+This document captures the agreed approach for handling roles at Kosovo Leadership Academy: roles live exclusively in our application-level registry and are injected into Cognito tokens at authentication time. We intentionally do **not** mirror these assignments back into Cognito user-pool groups.
+
+## Core principles
+
+1. **Single source of truth.** `UserRoleAssignment` (AppSync + DynamoDB) is the only authoritative store for wide roles such as `Staff`, `Student`, `Parent`, or `Admin`.
+2. **Token-based enforcement.** A pre-token-generation trigger reads the table, normalizes the role list, and overrides the Cognito token claims (`cognito:groups`, `app_roles`) for every sign-in. Amplify `@auth` rules and the frontend rely on these claims.
+3. **No Cognito group syncing.** We do not call `AdminAddUserToGroup` or rely on Cognito-managed group membership. AWS APIs such as `ListUsersInGroup` and the Cognito console will not reflect our assignments; reference the registry or cached claims instead.
+
+## First sign-in flow for Google users
+
+1. User authenticates with Google; Cognito creates the user without any groups.
+2. The `preTokenGeneration` Lambda looks up the user’s normalized email in `UserRoleAssignment`.
+3. If a record exists, the Lambda injects the stored roles into the token; if not, the token carries no privileged roles and the UI shows public-only features.
+4. Because this happens before tokens are issued, the very first session already reflects the correct permissions—no manual group edits or forced re-login cycle required.
+
+## Managing multiple roles
+
+- Store wide roles as an array (e.g., `["Teacher", "Parent"]`) in the registry.
+- Add any additional metadata (department, homeroom, etc.) alongside the role list in DynamoDB rather than scattering that data through Cognito attributes.
+- Treat role strings as immutable identifiers and validate them in the admin UI + Lambda so your policy logic stays predictable.
+
+## Operational guardrails
+
+- Lock mutations to trusted administrators using `@auth` rules and require Cognito-based sign-in with MFA for those accounts.
+- Capture `updatedBySub`, `updatedByEmail`, and timestamps on each change for auditing and GDPR accountability.
+- Never rely on `ListUsersInGroup`, Cognito console group filters, or other pool-level group APIs when building features; fetch from `UserRoleAssignment` or read the caller’s token claims instead.
+- Document this decision so future contributors do not attempt to reconcile Cognito groups unless requirements change.
+
+## Step-by-step implementation plan
+
+1. **Model the registry.** Define the `UserRoleAssignment` model (fields: stable `id`, `primaryEmail`, normalized `primaryEmailLower`, optional aliases, `roles`, audit metadata) with strict access rules.
+2. **Deploy the data layer.** Push schema updates through Amplify to provision DynamoDB + AppSync operations.
+3. **Expose secure mutations.** Build admin-only GraphQL mutations or Lambda resolvers that allow CRUD on the registry from your React UI.
+4. **Implement the pre-token trigger.** In the Lambda, normalize the user email, read the corresponding record, and set the union of roles on `event.response.claimsOverrideDetails`.
+5. **Integrate the admin UI.** Use `react-hook-form`, Zod validation, and shadcn/ui components to let staff manage assignments without touching the AWS console.
+6. **Enforce downstream policies.** Update AppSync resolvers, Lambdas, and frontend guards to check the injected role claims for authorization decisions.
+7. **Audit and monitor.** Emit structured logs for every mutation and consider exporting change events to CloudWatch or an observability pipeline.
+8. **Test end-to-end.** Pre-provision emails, sign in through Google, and verify tokens and UI behavior. Repeat for removal and role downgrades to ensure least privilege holds.
+9. **Communicate limitations.** Call out in runbooks that Cognito group listings are intentionally empty and that any future feature needing real groups will require a new sync path.
+10. **Review periodically.** Revisit the strategy if regulatory, reporting, or integration needs emerge that demand actual Cognito group membership.
