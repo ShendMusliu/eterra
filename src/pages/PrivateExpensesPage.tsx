@@ -177,7 +177,8 @@ export default function PrivateExpensesPage() {
 
     const netBalances = participantNames.map((name) => {
       const data = aggregates[name];
-      const net = (data?.paid ?? 0) + (data?.received ?? 0) - (data?.repaid ?? 0) - sharePerPerson;
+      // Positive net means others owe this person; repayments reduce the debt for the payer and reduce credit for the receiver.
+      const net = (data?.paid ?? 0) + (data?.repaid ?? 0) - (data?.received ?? 0) - sharePerPerson;
       return { name, net: parseFloat(net.toFixed(2)) };
     });
 

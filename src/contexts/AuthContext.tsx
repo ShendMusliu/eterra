@@ -74,6 +74,30 @@ export const AuthProvider = ({ children }: { children: ReactNode }) => {
     void init();
   }, []);
 
+  // Auto sign-out after 30 minutes of inactivity, but keep users signed in across refreshes.
+  useEffect(() => {
+    if (!user) return;
+
+    let timeoutId: ReturnType<typeof setTimeout> | null = null;
+    const IDLE_MS = 30 * 60 * 1000;
+
+    const resetTimer = () => {
+      if (timeoutId) clearTimeout(timeoutId);
+      timeoutId = setTimeout(() => {
+        void signOut();
+      }, IDLE_MS);
+    };
+
+    const events = ['mousemove', 'keydown', 'touchstart', 'click', 'scroll', 'visibilitychange'];
+    events.forEach((event) => window.addEventListener(event, resetTimer));
+    resetTimer();
+
+    return () => {
+      if (timeoutId) clearTimeout(timeoutId);
+      events.forEach((event) => window.removeEventListener(event, resetTimer));
+    };
+  }, [user]);
+
   const checkAuth = async () => {
     try {
       const profile = await buildUserFromAmplify();
