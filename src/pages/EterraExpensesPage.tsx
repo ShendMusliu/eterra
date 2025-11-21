@@ -1,12 +1,12 @@
 import { useEffect, useMemo, useState } from 'react';
 import { useNavigate } from 'react-router-dom';
-import { fetchAuthSession, signOut as amplifySignOut } from 'aws-amplify/auth';
+import { signOut as amplifySignOut } from 'aws-amplify/auth';
 import { useAuth } from '@/contexts/AuthContext';
 import { Button } from '@/components/ui/button';
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from '@/components/ui/card';
 import { Input } from '@/components/ui/input';
 import { Label } from '@/components/ui/label';
-import { assertNoDataErrors, dataClient } from '@/lib/api-client';
+import { assertNoDataErrors, dataClient, ensureAuthSession } from '@/lib/api-client';
 
 type Sale = {
   id: string;
@@ -80,7 +80,7 @@ export default function EterraExpensesPage() {
       }
 
       try {
-        await fetchAuthSession();
+        await ensureAuthSession();
         setLoading(true);
         const models = dataClient.models as Record<string, any>;
         const saleModel = models['EterraSale'];

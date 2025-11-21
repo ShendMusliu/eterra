@@ -1,12 +1,12 @@
 import { useEffect, useMemo, useState } from 'react';
 import { useNavigate } from 'react-router-dom';
-import { fetchAuthSession, signOut as amplifySignOut } from 'aws-amplify/auth';
+import { signOut as amplifySignOut } from 'aws-amplify/auth';
 import { useAuth } from '@/contexts/AuthContext';
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from '@/components/ui/card';
 import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
 import { Label } from '@/components/ui/label';
-import { assertNoDataErrors, dataClient } from '@/lib/api-client';
+import { assertNoDataErrors, dataClient, ensureAuthSession } from '@/lib/api-client';
 
 const MEMBERS = ['Shend Musliu', 'Lorik Syla', 'Gentrit Haziri'] as const;
 type MemberName = (typeof MEMBERS)[number];
@@ -91,7 +91,7 @@ export default function PrivateExpensesPage() {
       }
 
       try {
-        await fetchAuthSession();
+        await ensureAuthSession();
         setLoading(true);
         const [expenseResult, repaymentResult] = await Promise.all([
           dataClient.models.PrivateExpense.list({ authMode: 'userPool' }),
