@@ -25,6 +25,10 @@ export default function DashboardPage() {
     navigate('/eterra-expenses');
   };
 
+  const handleOpenChangePassword = () => {
+    navigate('/change-password');
+  };
+
   return (
     <div className="min-h-screen bg-[hsl(var(--background))]">
       <nav className="border-b border-[hsl(var(--border))] bg-[hsl(var(--card))]">
@@ -101,6 +105,21 @@ export default function DashboardPage() {
                 </p>
                 <Button variant="outline" className="w-full" onClick={handleOpenCalculator}>
                   Open Calculator
+                </Button>
+              </CardContent>
+            </Card>
+
+            <Card className="hover:shadow-lg transition-shadow">
+              <CardHeader>
+                <CardTitle>Account Security</CardTitle>
+                <CardDescription>Change your password</CardDescription>
+              </CardHeader>
+              <CardContent className="space-y-2">
+                <p className="text-sm text-[hsl(var(--muted-foreground))]">
+                  Update your password to keep your account secure.
+                </p>
+                <Button variant="outline" className="w-full" onClick={handleOpenChangePassword}>
+                  Change Password
                 </Button>
               </CardContent>
             </Card>
