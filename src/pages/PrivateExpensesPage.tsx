@@ -214,16 +214,17 @@ export default function PrivateExpensesPage() {
         timestamp: expenseForm.timestamp || new Date().toISOString(),
         evidenceUrl: expenseForm.evidence.trim() || undefined,
       });
-      if (result?.data) {
+      const createdExpense = result.data;
+      if (createdExpense) {
         setExpenses((current) => [
           {
-            id: result.data.id,
-            userId: result.data.userId,
-            userName: canonicalizeMember(result.data.userName),
-            description: result.data.description,
-            amount: result.data.amount,
-            timestamp: result.data.timestamp,
-            evidenceUrl: result.data.evidenceUrl ?? undefined,
+            id: createdExpense.id,
+            userId: createdExpense.userId,
+            userName: canonicalizeMember(createdExpense.userName),
+            description: createdExpense.description,
+            amount: createdExpense.amount,
+            timestamp: createdExpense.timestamp,
+            evidenceUrl: createdExpense.evidenceUrl ?? undefined,
           },
           ...current,
         ]);
@@ -255,17 +256,18 @@ export default function PrivateExpensesPage() {
         timestamp: repaymentForm.timestamp || new Date().toISOString(),
         notes: repaymentForm.notes.trim() || undefined,
       });
-      if (result?.data) {
+      const createdRepayment = result.data;
+      if (createdRepayment) {
         setRepayments((current) => [
           {
-            id: result.data.id,
-            payerId: result.data.payerId,
-            payerName: canonicalizeMember(result.data.payerName),
-            recipientId: canonicalizeMember(result.data.recipientId),
-            recipientName: canonicalizeMember(result.data.recipientName),
-            amount: result.data.amount,
-            timestamp: result.data.timestamp,
-            notes: result.data.notes ?? undefined,
+            id: createdRepayment.id,
+            payerId: createdRepayment.payerId,
+            payerName: canonicalizeMember(createdRepayment.payerName),
+            recipientId: canonicalizeMember(createdRepayment.recipientId),
+            recipientName: canonicalizeMember(createdRepayment.recipientName),
+            amount: createdRepayment.amount,
+            timestamp: createdRepayment.timestamp,
+            notes: createdRepayment.notes ?? undefined,
           },
           ...current,
         ]);
@@ -286,12 +288,12 @@ export default function PrivateExpensesPage() {
     summary.settlements.length > 0
       ? summary.settlements
       : [
-          {
-            from: 'Everyone',
-            to: '',
-            amount: 0,
-          },
-        ];
+        {
+          from: 'Everyone',
+          to: '',
+          amount: 0,
+        },
+      ];
 
   const currentBalance = summary.netBalances.find((entry) => entry.name === displayName)?.net ?? 0;
 
