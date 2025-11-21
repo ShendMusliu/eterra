@@ -72,6 +72,12 @@ export default function EterraExpensesPage() {
 
   useEffect(() => {
     const fetchData = async () => {
+      if (!user) {
+        setLoading(false);
+        navigate('/login');
+        return;
+      }
+
       try {
         setLoading(true);
         const models = dataClient.models as Record<string, any>;
@@ -127,7 +133,7 @@ export default function EterraExpensesPage() {
     };
 
     void fetchData();
-  }, []);
+  }, [user, navigate]);
 
   const summary = useMemo(() => {
     const now = new Date();

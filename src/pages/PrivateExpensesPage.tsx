@@ -83,6 +83,12 @@ export default function PrivateExpensesPage() {
 
   useEffect(() => {
     const fetchData = async () => {
+      if (!user) {
+        setLoading(false);
+        navigate('/login');
+        return;
+      }
+
       try {
         setLoading(true);
         const [expenseResult, repaymentResult] = await Promise.all([
@@ -131,7 +137,7 @@ export default function PrivateExpensesPage() {
     };
 
     void fetchData();
-  }, []);
+  }, [user, navigate]);
 
   const participantNames = MEMBERS;
 
