@@ -16,7 +16,7 @@ export const data = defineData({
         amount: a.float().required(),
         shippingCost: a.float().default(0),
         netAfterShipping: a.float().required(),
-        paymentStatus: a.enum(['received', 'pending']).required(),
+        paymentStatus: a.enum(['received', 'pending']).default('pending'),
         recordedById: a.string().required(),
         recordedByName: a.string().required(),
         notes: a.string(),
