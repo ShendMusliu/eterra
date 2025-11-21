@@ -175,6 +175,22 @@ export default function EterraExpensesPage() {
       return current;
     }, null);
 
+    // Build tiny trend arrays for sparklines
+    const orderedMonthlySales = [...monthlySales].sort((a, b) => new Date(a.timestamp).getTime() - new Date(b.timestamp).getTime());
+    const orderedMonthlyPurchases = [...monthlyPurchases].sort((a, b) => new Date(a.timestamp).getTime() - new Date(b.timestamp).getTime());
+    const revenueTrend = orderedMonthlySales.slice(-10).map((sale) => sale.netAfterShipping);
+    const pendingTrend = orderedMonthlySales.filter((sale) => sale.paymentStatus === 'pending').slice(-10).map((sale) => sale.netAfterShipping);
+    const cashBoxTrend: number[] = [];
+    let runningCash = 0;
+    const combined = [
+      ...orderedMonthlySales.map((sale) => ({ ts: sale.timestamp, delta: sale.netAfterShipping })),
+      ...orderedMonthlyPurchases.map((purchase) => ({ ts: purchase.timestamp, delta: -purchase.amount })),
+    ].sort((a, b) => new Date(a.ts).getTime() - new Date(b.ts).getTime());
+    combined.forEach((entry) => {
+      runningCash += entry.delta;
+      cashBoxTrend.push(runningCash);
+    });
+
     return {
       monthlyRevenue,
       pendingReceivables,
@@ -183,6 +199,9 @@ export default function EterraExpensesPage() {
       cashBox,
       channelBreakdown,
       bestSale,
+      revenueTrend,
+      pendingTrend,
+      cashBoxTrend,
     };
   }, [sales, purchases]);
 
@@ -343,11 +362,13 @@ export default function EterraExpensesPage() {
             title="Revenue this month"
             value={formatCurrency(summary.monthlyRevenue)}
             subtitle={`${sales.length} logged sales`}
+            trendData={summary.revenueTrend}
           />
           <MetricCard
             title="Pending receivables"
             value={formatCurrency(summary.pendingReceivables)}
             subtitle="Waiting to be collected"
+            trendData={summary.pendingTrend}
           />
           <MetricCard
             title="Cash box after spend"
@@ -357,6 +378,7 @@ export default function EterraExpensesPage() {
                 ? `${formatCurrency(summary.monthlySpend)} spent this month`
                 : 'No spend recorded this month'
             }
+            trendData={summary.cashBoxTrend}
           />
         </section>
 
@@ -702,13 +724,52 @@ export default function EterraExpensesPage() {
   );
 }
 
-function MetricCard({ title, value, subtitle }: { title: string; value: string; subtitle: string }) {
+function MetricCard({
+  title,
+  value,
+  subtitle,
+  trendData,
+}: {
+  title: string;
+  value: string;
+  subtitle: string;
+  trendData?: number[];
+}) {
+  const sparkPoints = trendData && trendData.length > 0 ? trendData : [0];
+  const max = Math.max(...sparkPoints, 1);
+  const width = 140;
+  const height = 48;
+  const step = sparkPoints.length > 1 ? width / (sparkPoints.length - 1) : width;
+  const path = sparkPoints
+    .map((point, index) => {
+      const x = index * step;
+      const y = height - (point / max) * (height - 6);
+      return `${index === 0 ? 'M' : 'L'} ${x} ${y}`;
+    })
+    .join(' ');
+
   return (
     <Card className="shadow-sm">
       <CardHeader>
         <CardTitle className="text-sm font-medium text-[hsl(var(--muted-foreground))]">{title}</CardTitle>
         <p className="text-2xl font-semibold text-[hsl(var(--foreground))]">{value}</p>
         <CardDescription>{subtitle}</CardDescription>
+        <div className="mt-2 rounded-md bg-[hsl(var(--muted))]/50 p-2">
+          <svg width={width} height={height} role="presentation">
+            <path
+              d={`${path} L ${width} ${height} L 0 ${height} Z`}
+              fill="url(#spark-gradient)"
+              opacity="0.3"
+            />
+            <path d={path} stroke="hsl(var(--primary))" strokeWidth="2.2" fill="none" strokeLinecap="round" />
+            <defs>
+              <linearGradient id="spark-gradient" x1="0" x2="0" y1="0" y2="1">
+                <stop offset="0%" stopColor="hsl(var(--primary))" stopOpacity="0.4" />
+                <stop offset="100%" stopColor="hsl(var(--primary))" stopOpacity="0" />
+              </linearGradient>
+            </defs>
+          </svg>
+        </div>
       </CardHeader>
     </Card>
   );
