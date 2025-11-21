@@ -7,7 +7,8 @@ backend:
         - npm install --legacy-peer-deps
     build:
       commands:
-        - npx ampx pipeline-deploy --branch $AWS_BRANCH --app-id $AMPLIFY_APP_ID
+        # Explicitly set branch and app id to avoid empty env in Amplify Gen 2
+        - npx ampx pipeline-deploy --branch main --app-id d1fvk6088i0f8w
 
 frontend:
   phases:
