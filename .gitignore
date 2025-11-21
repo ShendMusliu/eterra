@@ -32,3 +32,4 @@ ampx.config.json
 .env.local
 .env
 !public/amplify_outputs.json
+.amplify/
