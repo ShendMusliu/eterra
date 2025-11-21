@@ -272,7 +272,7 @@ export default function PrivateExpensesPage() {
     const amount = parseFloat(repaymentForm.amount);
     if (!amount || amount <= 0) return;
     if (repaymentForm.recipient === displayName) {
-      setError('Zgjedh dikë tjetër për ta rimbursuar.');
+      setError('Choose another member to reimburse.');
       return;
     }
 
@@ -424,7 +424,7 @@ export default function PrivateExpensesPage() {
           <Card className="shadow-lg">
             <CardHeader>
               <CardTitle>Log Repayment</CardTitle>
-              <CardDescription>Shëno kur rimburson Lorikun ose Gentritin — vetëm ti si pagues mund ta regjistrosh.</CardDescription>
+              <CardDescription>Record repayments you pay back to the other partners; you can only log what you pay out.</CardDescription>
             </CardHeader>
             <CardContent>
               <form onSubmit={handleAddRepayment} className="space-y-4">
