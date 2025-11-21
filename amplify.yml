@@ -1,4 +1,14 @@
 version: 1
+
+backend:
+  phases:
+    preBuild:
+      commands:
+        - npm install --legacy-peer-deps
+    build:
+      commands:
+        - npx ampx pipeline-deploy --branch $AWS_BRANCH --app-id $AMPLIFY_APP_ID
+
 frontend:
   phases:
     preBuild:
