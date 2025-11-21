@@ -7,7 +7,7 @@ import { a, defineData } from '@aws-amplify/backend';
  * - PrivateExpense: personal business expenses (Shend/Lorik/Gentrit).
  * - PrivateRepayment: repayments between members.
  */
-export const schema = a.schema({
+const schema = a.schema({
     EterraSale: a
       .model({
         description: a.string().required(),
