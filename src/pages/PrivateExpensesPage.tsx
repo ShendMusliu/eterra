@@ -85,14 +85,18 @@ export default function PrivateExpensesPage() {
     const fetchData = async () => {
       try {
         setLoading(true);
+        const models = dataClient.models as Record<string, any>;
+        const expenseModel = models['PrivateExpense'];
+        const repaymentModel = models['PrivateRepayment'];
+
         const [expenseResult, repaymentResult] = await Promise.all([
-          dataClient.models.PrivateExpense.list(),
-          dataClient.models.PrivateRepayment.list(),
+          expenseModel?.list?.() ?? { data: [] },
+          repaymentModel?.list?.() ?? { data: [] },
         ]);
 
         const normalizedExpenses =
           expenseResult?.data
-            ?.map((item) => ({
+            ?.map((item: any) => ({
               id: item.id,
               userId: item.userId,
               userName: canonicalizeMember(item.userName),
@@ -105,7 +109,7 @@ export default function PrivateExpensesPage() {
 
         const normalizedRepayments =
           repaymentResult?.data
-            ?.map((item) => ({
+            ?.map((item: any) => ({
               id: item.id,
               payerId: item.payerId,
               payerName: canonicalizeMember(item.payerName),
@@ -206,7 +210,9 @@ export default function PrivateExpensesPage() {
     if (!amount || amount <= 0) return;
 
     try {
-      const result = await dataClient.models.PrivateExpense.create({
+      const models = dataClient.models as Record<string, any>;
+      const expenseModel = models['PrivateExpense'];
+      const result = await expenseModel?.create?.({
         userId,
         userName: displayName,
         description: expenseForm.description.trim() || 'Business expense',
@@ -246,7 +252,9 @@ export default function PrivateExpensesPage() {
     if (!amount || amount <= 0) return;
 
     try {
-      const result = await dataClient.models.PrivateRepayment.create({
+      const models = dataClient.models as Record<string, any>;
+      const repaymentModel = models['PrivateRepayment'];
+      const result = await repaymentModel?.create?.({
         payerId: userId,
         payerName: displayName,
         recipientId: repaymentForm.recipient,

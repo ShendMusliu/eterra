@@ -74,14 +74,18 @@ export default function EterraExpensesPage() {
     const fetchData = async () => {
       try {
         setLoading(true);
+        const models = dataClient.models as Record<string, any>;
+        const saleModel = models['EterraSale'];
+        const purchaseModel = models['EterraPurchase'];
+
         const [salesResult, purchasesResult] = await Promise.all([
-          dataClient.models.EterraSale.list(),
-          dataClient.models.EterraPurchase.list(),
+          saleModel?.list?.() ?? { data: [] },
+          purchaseModel?.list?.() ?? { data: [] },
         ]);
 
         const normalizedSales =
           salesResult?.data
-            ?.map((item) => ({
+            ?.map((item: any) => ({
               id: item.id,
               description: item.description,
               saleType: item.saleType,
@@ -98,7 +102,7 @@ export default function EterraExpensesPage() {
 
         const normalizedPurchases =
           purchasesResult?.data
-            ?.map((item) => ({
+            ?.map((item: any) => ({
               id: item.id,
               description: item.description,
               amount: item.amount,
@@ -184,7 +188,9 @@ export default function EterraExpensesPage() {
         : saleForm.saleType || 'Privat';
 
     try {
-      const result = await dataClient.models.EterraSale.create({
+          const models = dataClient.models as Record<string, any>;
+          const saleModel = models['EterraSale'];
+          const result = await saleModel?.create?.({
         description: saleForm.description.trim() || 'Sale',
         saleType,
         amount: amountValue,
@@ -238,7 +244,9 @@ export default function EterraExpensesPage() {
     if (!amountValue || amountValue <= 0) return;
 
     try {
-      const result = await dataClient.models.EterraPurchase.create({
+          const models = dataClient.models as Record<string, any>;
+          const purchaseModel = models['EterraPurchase'];
+          const result = await purchaseModel?.create?.({
         description: purchaseForm.description.trim() || 'Purchase',
         amount: amountValue,
         timestamp: purchaseForm.timestamp || new Date().toISOString(),
