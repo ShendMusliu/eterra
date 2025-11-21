@@ -1,5 +1,6 @@
 import { useEffect, useMemo, useState } from 'react';
 import { useNavigate } from 'react-router-dom';
+import { fetchAuthSession, signOut as amplifySignOut } from 'aws-amplify/auth';
 import { useAuth } from '@/contexts/AuthContext';
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from '@/components/ui/card';
 import { Button } from '@/components/ui/button';
@@ -90,6 +91,7 @@ export default function PrivateExpensesPage() {
       }
 
       try {
+        await fetchAuthSession();
         setLoading(true);
         const [expenseResult, repaymentResult] = await Promise.all([
           dataClient.models.PrivateExpense.list({ authMode: 'userPool' }),
@@ -130,6 +132,11 @@ export default function PrivateExpensesPage() {
         setError(null);
       } catch (err) {
         console.error('Failed to load expenses/repayments', err);
+        if ((err as Error)?.name === 'UserUnAuthenticatedException') {
+          await amplifySignOut();
+          navigate('/login');
+          return;
+        }
         setError('Failed to load data. Please try again.');
       } finally {
         setLoading(false);
