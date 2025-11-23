@@ -206,8 +206,8 @@ export default function EterraExpensesPage() {
   }, [sales, purchases]);
 
   const handleMarkReceived = async (saleId: string) => {
-    const confirm = window.confirm('Mark this sale as received?');
-    if (!confirm) return;
+    const confirmed = window.confirm('Mark this sale as received?');
+    if (!confirmed) return;
 
     try {
       const models = dataClient.models as Record<string, any>;
@@ -222,9 +222,7 @@ export default function EterraExpensesPage() {
       assertNoDataErrors(result);
       if (result?.data) {
         setSales((current) =>
-          current.map((sale) =>
-            sale.id === saleId ? { ...sale, paymentStatus: 'received' } : sale
-          )
+          current.map((sale) => (sale.id === saleId ? { ...sale, paymentStatus: 'received' } : sale))
         );
       }
     } catch (err) {
