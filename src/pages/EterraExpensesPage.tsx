@@ -205,6 +205,34 @@ export default function EterraExpensesPage() {
     };
   }, [sales, purchases]);
 
+  const handleMarkReceived = async (saleId: string) => {
+    const confirm = window.confirm('Mark this sale as received?');
+    if (!confirm) return;
+
+    try {
+      const models = dataClient.models as Record<string, any>;
+      const saleModel = models['EterraSale'];
+      const result = await saleModel?.update?.(
+        {
+          id: saleId,
+          paymentStatus: 'received',
+        },
+        { authMode: 'userPool' }
+      );
+      assertNoDataErrors(result);
+      if (result?.data) {
+        setSales((current) =>
+          current.map((sale) =>
+            sale.id === saleId ? { ...sale, paymentStatus: 'received' } : sale
+          )
+        );
+      }
+    } catch (err) {
+      console.error('Failed to mark sale as received', err);
+      setError('Could not update payment status. Please try again.');
+    }
+  };
+
   const handleAddSale = async (event: React.FormEvent) => {
     event.preventDefault();
     const amountValue = parseFloat(saleForm.amount);
@@ -774,3 +802,4 @@ function MetricCard({
     </Card>
   );
 }
+
