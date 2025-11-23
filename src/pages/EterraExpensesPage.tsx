@@ -700,17 +700,25 @@ export default function EterraExpensesPage() {
                   <article key={sale.id} className="rounded-xl border border-[hsl(var(--border))] bg-[hsl(var(--card))]/70 p-3">
                     <div className="flex items-center justify-between text-sm">
                       <span className="font-medium">{sale.description}</span>
-                      <span className={`text-xs uppercase tracking-[0.2em] ${sale.paymentStatus === 'pending' ? 'text-[hsl(var(--destructive))]' : 'text-emerald-600'}`}>
-                        {sale.paymentStatus === 'pending' ? 'Pending' : 'Received'}
-                      </span>
+                      {sale.paymentStatus === 'pending' ? (
+                        <button
+                          type="button"
+                          className="text-xs uppercase tracking-[0.2em] text-[hsl(var(--destructive))] underline-offset-4 hover:underline"
+                          onClick={() => handleMarkReceived(sale.id)}
+                        >
+                          Pending
+                        </button>
+                      ) : (
+                        <span className="text-xs uppercase tracking-[0.2em] text-emerald-600">Received</span>
+                      )}
                     </div>
                     <p className="text-lg font-semibold">{formatCurrency(sale.netAfterShipping)}</p>
                     <p className="text-sm text-[hsl(var(--muted-foreground))]">
-                      {sale.saleType} Â· {formatDate(sale.timestamp)} Â· recorded by {sale.recordedByName}
+                      {sale.saleType} – {formatDate(sale.timestamp)} – recorded by {sale.recordedByName}
                     </p>
                     {sale.notes && <p className="text-sm text-[hsl(var(--muted-foreground))]">{sale.notes}</p>}
                   </article>
-                ))
+                ))))
               )}
             </CardContent>
           </Card>
@@ -800,4 +808,9 @@ function MetricCard({
     </Card>
   );
 }
+
+
+
+
+
 
