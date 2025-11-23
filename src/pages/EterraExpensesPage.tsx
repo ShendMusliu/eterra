@@ -70,6 +70,11 @@ export default function EterraExpensesPage() {
     notes: '',
   });
 
+  const [saleStatusFilter, setSaleStatusFilter] = useState<'all' | 'pending' | 'received'>('all');
+  const [saleSearch, setSaleSearch] = useState('');
+  const [purchaseSearch, setPurchaseSearch] = useState('');
+  const [confirmSaleId, setConfirmSaleId] = useState<string | null>(null);
+
   useEffect(() => {
     const fetchData = async () => {
       if (!user) {
@@ -159,15 +164,6 @@ export default function EterraExpensesPage() {
     const totalPurchases = purchases.reduce((sum, purchase) => sum + purchase.amount, 0);
     const cashBox = totalReceived - totalPurchases;
 
-    const channelTotals = monthlySales.reduce<Record<string, number>>((acc, sale) => {
-      acc[sale.saleType] = (acc[sale.saleType] || 0) + sale.netAfterShipping;
-      return acc;
-    }, {});
-
-    const channelBreakdown = Object.entries(channelTotals)
-      .map(([channel, value]) => ({ channel, value }))
-      .sort((a, b) => b.value - a.value);
-
     const bestSale = sales.reduce<Sale | null>((current, sale) => {
       if (!current || sale.netAfterShipping > current.netAfterShipping) {
         return sale;
@@ -197,7 +193,6 @@ export default function EterraExpensesPage() {
       monthlySpend,
       shippingCostsMonth,
       cashBox,
-      channelBreakdown,
       bestSale,
       revenueTrend,
       pendingTrend,
@@ -206,9 +201,6 @@ export default function EterraExpensesPage() {
   }, [sales, purchases]);
 
   const handleMarkReceived = async (saleId: string) => {
-    const confirmed = window.confirm('Mark this sale as received?');
-    if (!confirmed) return;
-
     try {
       const models = dataClient.models as Record<string, any>;
       const saleModel = models['EterraSale'];
@@ -228,8 +220,35 @@ export default function EterraExpensesPage() {
     } catch (err) {
       console.error('Failed to mark sale as received', err);
       setError('Could not update payment status. Please try again.');
+    } finally {
+      setConfirmSaleId(null);
     }
   };
+
+  const filteredSales = useMemo(() => {
+    return sales.filter((sale) => {
+      const matchesStatus =
+        saleStatusFilter === 'all' ? true : sale.paymentStatus === saleStatusFilter;
+      const query = saleSearch.toLowerCase();
+      const matchesQuery =
+        !query ||
+        sale.description.toLowerCase().includes(query) ||
+        sale.recordedByName.toLowerCase().includes(query) ||
+        sale.saleType.toLowerCase().includes(query);
+      return matchesStatus && matchesQuery;
+    });
+  }, [sales, saleStatusFilter, saleSearch]);
+
+  const filteredPurchases = useMemo(() => {
+    const query = purchaseSearch.toLowerCase();
+    return purchases.filter((purchase) => {
+      if (!query) return true;
+      return (
+        purchase.description.toLowerCase().includes(query) ||
+        purchase.recordedByName.toLowerCase().includes(query)
+      );
+    });
+  }, [purchases, purchaseSearch]);
 
   const handleAddSale = async (event: React.FormEvent) => {
     event.preventDefault();
@@ -383,7 +402,7 @@ export default function EterraExpensesPage() {
           </div>
         </header>
 
-        <section className="grid gap-4 md:grid-cols-2 lg:grid-cols-3">
+        <section className="grid gap-4 md:grid-cols-1 lg:grid-cols-3">
           <MetricCard
             title="Revenue this month"
             value={formatCurrency(summary.monthlyRevenue)}
@@ -440,7 +459,7 @@ export default function EterraExpensesPage() {
                     onChange={(event) => setSaleForm((current) => ({ ...current, description: event.target.value }))}
                   />
                 </div>
-                <div className="grid gap-4 sm:grid-cols-2">
+                <div className="grid gap-4 sm:grid-cols-1">
                   <div className="space-y-2">
                     <Label htmlFor="sale-amount">Amount (EUR)</Label>
                     <Input
@@ -470,7 +489,7 @@ export default function EterraExpensesPage() {
                     </p>
                   </div>
                 </div>
-                <div className="grid gap-4 sm:grid-cols-2">
+                <div className="grid gap-4 sm:grid-cols-1">
                   <div className="space-y-2">
                     <Label htmlFor="sale-type">Sale type</Label>
                     <select
@@ -613,42 +632,7 @@ export default function EterraExpensesPage() {
           </div>
         </section>
 
-        <section className="grid gap-6 lg:grid-cols-2">
-          <Card className="shadow-sm">
-            <CardHeader>
-              <CardTitle>Channel breakdown (current month)</CardTitle>
-              <CardDescription>Compare how each channel performs after shipping costs.</CardDescription>
-            </CardHeader>
-            <CardContent className="space-y-3">
-              {summary.channelBreakdown.length === 0 ? (
-                <p className="rounded-md border border-dashed border-[hsl(var(--border))] p-3 text-sm text-[hsl(var(--muted-foreground))]">
-                  No sales recorded this month yet.
-                </p>
-              ) : (
-                summary.channelBreakdown.map(({ channel, value }) => {
-                  const totalMonth = summary.channelBreakdown.reduce((sum, entry) => sum + entry.value, 0);
-                  const percentage = totalMonth ? Math.round((value / totalMonth) * 100) : 0;
-                  return (
-                    <div key={channel} className="space-y-1">
-                      <div className="flex items-center justify-between text-sm">
-                        <span className="font-medium">{channel}</span>
-                        <span className="text-[hsl(var(--muted-foreground))]">
-                          {formatCurrency(value)} Â· {percentage}%
-                        </span>
-                      </div>
-                      <div className="h-2 rounded-full bg-[hsl(var(--muted))]/40">
-                        <div
-                          className="h-full rounded-full bg-[hsl(var(--primary))]"
-                          style={{ width: `${percentage}%` }}
-                        />
-                      </div>
-                    </div>
-                  );
-                })
-              )}
-            </CardContent>
-          </Card>
-
+        <section className="grid gap-6 lg:grid-cols-1">
           <Card className="shadow-sm">
             <CardHeader>
               <CardTitle>Largest recorded sale</CardTitle>
@@ -680,7 +664,50 @@ export default function EterraExpensesPage() {
           </Card>
         </section>
 
-        <section className="grid gap-6 lg:grid-cols-2">
+        <section className="space-y-4">
+          <div className="grid gap-3 md:grid-cols-3">
+            <div>
+              <Label htmlFor="sale-status-filter" className="text-sm text-[hsl(var(--muted-foreground))]">
+                Sales status
+              </Label>
+              <select
+                id="sale-status-filter"
+                className="mt-1 w-full rounded-md border border-[hsl(var(--border))] bg-transparent px-3 py-2 text-sm"
+                value={saleStatusFilter}
+                onChange={(e) => setSaleStatusFilter(e.target.value as 'all' | 'pending' | 'received')}
+              >
+                <option value="all">All</option>
+                <option value="pending">Pending</option>
+                <option value="received">Received</option>
+              </select>
+            </div>
+            <div>
+              <Label htmlFor="sale-search" className="text-sm text-[hsl(var(--muted-foreground))]">
+                Search sales
+              </Label>
+              <Input
+                id="sale-search"
+                className="mt-1"
+                placeholder="Description, channel, recorder"
+                value={saleSearch}
+                onChange={(e) => setSaleSearch(e.target.value)}
+              />
+            </div>
+            <div>
+              <Label htmlFor="purchase-search" className="text-sm text-[hsl(var(--muted-foreground))]">
+                Search purchases
+              </Label>
+              <Input
+                id="purchase-search"
+                className="mt-1"
+                placeholder="Description or recorder"
+                value={purchaseSearch}
+                onChange={(e) => setPurchaseSearch(e.target.value)}
+              />
+            </div>
+          </div>
+
+          <div className="grid gap-6 lg:grid-cols-1">
           <Card className="shadow-sm">
             <CardHeader>
               <CardTitle>Recent sales</CardTitle>
@@ -691,20 +718,20 @@ export default function EterraExpensesPage() {
                 <p className="rounded-md border border-dashed border-[hsl(var(--border))] p-3 text-sm text-[hsl(var(--muted-foreground))]">
                   Loading...
                 </p>
-              ) : sales.length === 0 ? (
+              ) : filteredSales.length === 0 ? (
                 <p className="rounded-md border border-dashed border-[hsl(var(--border))] p-3 text-sm text-[hsl(var(--muted-foreground))]">
                   No sales logged yet.
                 </p>
               ) : (
-                sales.slice(0, 5).map((sale) => (
+                filteredSales.slice(0, 5).map((sale) => (
                   <article key={sale.id} className="rounded-xl border border-[hsl(var(--border))] bg-[hsl(var(--card))]/70 p-3">
                     <div className="flex items-center justify-between text-sm">
                       <span className="font-medium">{sale.description}</span>
-                      {sale.paymentStatus === 'pending' ? (
+                      {sale.paymentStatus === "pending" ? (
                         <button
                           type="button"
                           className="text-xs uppercase tracking-[0.2em] text-[hsl(var(--destructive))] underline-offset-4 hover:underline"
-                          onClick={() => handleMarkReceived(sale.id)}
+                          onClick={() => setConfirmSaleId(sale.id)}
                         >
                           Pending
                         </button>
@@ -733,12 +760,12 @@ export default function EterraExpensesPage() {
                 <p className="rounded-md border border-dashed border-[hsl(var(--border))] p-3 text-sm text-[hsl(var(--muted-foreground))]">
                   Loading...
                 </p>
-              ) : purchases.length === 0 ? (
+              ) : filteredPurchases.length === 0 ? (
                 <p className="rounded-md border border-dashed border-[hsl(var(--border))] p-3 text-sm text-[hsl(var(--muted-foreground))]">
                   No purchases logged yet.
                 </p>
               ) : (
-                purchases.slice(0, 5).map((purchase) => (
+                filteredPurchases.slice(0, 5).map((purchase) => (
                   <article key={purchase.id} className="rounded-xl border border-[hsl(var(--border))] bg-[hsl(var(--card))]/70 p-3">
                     <div className="flex items-center justify-between text-sm">
                       <span className="font-medium">{purchase.description}</span>
@@ -752,8 +779,28 @@ export default function EterraExpensesPage() {
               )}
             </CardContent>
           </Card>
+          </div>
         </section>
       </div>
+
+      {confirmSaleId && (
+        <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/50 px-4">
+          <div className="w-full max-w-sm rounded-xl border border-[hsl(var(--border))] bg-[hsl(var(--card))] p-5 shadow-xl">
+            <h3 className="text-lg font-semibold text-[hsl(var(--foreground))]">Mark as received?</h3>
+            <p className="mt-2 text-sm text-[hsl(var(--muted-foreground))]">
+              Confirm you received payment for this sale. This will switch the status from Pending to Received.
+            </p>
+            <div className="mt-4 flex flex-wrap gap-2 justify-end">
+              <Button variant="outline" onClick={() => setConfirmSaleId(null)}>
+                Cancel
+              </Button>
+              <Button onClick={() => confirmSaleId && handleMarkReceived(confirmSaleId)}>
+                Mark received
+              </Button>
+            </div>
+          </div>
+        </div>
+      )}
     </div>
   );
 }
@@ -808,6 +855,8 @@ function MetricCard({
     </Card>
   );
 }
+
+
 
 
 
