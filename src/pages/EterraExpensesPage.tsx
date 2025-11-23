@@ -1,4 +1,4 @@
-import { useEffect, useMemo, useState } from 'react';
+﻿import { useEffect, useMemo, useState } from 'react';
 import { useNavigate } from 'react-router-dom';
 import { useAuth } from '@/contexts/AuthContext';
 import { Button } from '@/components/ui/button';
@@ -633,7 +633,7 @@ export default function EterraExpensesPage() {
                       <div className="flex items-center justify-between text-sm">
                         <span className="font-medium">{channel}</span>
                         <span className="text-[hsl(var(--muted-foreground))]">
-                          {formatCurrency(value)} · {percentage}%
+                          {formatCurrency(value)} Â· {percentage}%
                         </span>
                       </div>
                       <div className="h-2 rounded-full bg-[hsl(var(--muted))]/40">
@@ -714,11 +714,11 @@ export default function EterraExpensesPage() {
                     </div>
                     <p className="text-lg font-semibold">{formatCurrency(sale.netAfterShipping)}</p>
                     <p className="text-sm text-[hsl(var(--muted-foreground))]">
-                      {sale.saleType} � {formatDate(sale.timestamp)} � recorded by {sale.recordedByName}
+                      {sale.saleType} – {formatDate(sale.timestamp)} – recorded by {sale.recordedByName}
                     </p>
                     {sale.notes && <p className="text-sm text-[hsl(var(--muted-foreground))]">{sale.notes}</p>}
                   </article>
-                ))))
+                ))
               )}
             </CardContent>
           </Card>
@@ -808,6 +808,9 @@ function MetricCard({
     </Card>
   );
 }
+
+
+
 
 
 
