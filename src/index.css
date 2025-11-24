@@ -1,3 +1,4 @@
+@import url('https://fonts.googleapis.com/css2?family=Poppins:wght@500;600;700&display=swap');
 @import "tailwindcss";
 
 @layer base {
@@ -62,6 +63,7 @@
     --font-sans: Lato, sans-serif;
     --font-serif: Merriweather, Geist, Geist Fallback, ui-serif, Georgia, Cambria, 'Times New Roman', Times, serif;
     --font-mono: 'Roboto Mono', Geist Mono, Geist Mono Fallback, ui-monospace, SFMono-Regular, Menlo, Monaco, Consolas, 'Liberation Mono', 'Courier New', monospace;
+    --font-brand: 'Poppins', var(--font-sans);
     --radius: 0.25rem;
     --shadow-2xs: 0px 1px 3px 0px oklch(0.35 0.05 163.02 / 0.02);
     --shadow-xs: 0px 1px 3px 0px oklch(0.35 0.05 163.02 / 0.02);
@@ -148,6 +150,12 @@
   body {
     background-color: hsl(var(--background));
     color: hsl(var(--foreground));
+    font-family: var(--font-sans);
+  }
+
+  .font-brand {
+    font-family: var(--font-brand);
+    letter-spacing: -0.025em;
   }
 }
 

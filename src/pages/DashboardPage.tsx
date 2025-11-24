@@ -24,10 +24,7 @@ export default function DashboardPage() {
         <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8">
           <div className="flex justify-between h-16 items-center">
             <div className="flex items-center space-x-4">
-              <span
-                className="text-3xl font-semibold tracking-tight text-[hsl(var(--foreground))]"
-                style={{ fontFamily: 'Poppins, var(--font-sans)' }}
-              >
+              <span className="font-brand text-3xl font-semibold tracking-tight text-[hsl(var(--foreground))]">
                 eterra.
               </span>
             </div>
