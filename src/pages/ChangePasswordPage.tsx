@@ -26,6 +26,11 @@ export default function ChangePasswordPage() {
       return;
     }
 
+    if (newPassword.length < 8 || !/[A-Z]/.test(newPassword) || !/[a-z]/.test(newPassword) || !/[0-9]/.test(newPassword) || !/[^A-Za-z0-9]/.test(newPassword)) {
+      setError('Password must be at least 8 characters and include uppercase, lowercase, number, and symbol.');
+      return;
+    }
+
     setLoading(true);
     try {
       await updatePassword({ oldPassword: currentPassword, newPassword });

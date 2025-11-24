@@ -72,7 +72,10 @@ export default function DashboardPage() {
                 <p className="text-sm text-[hsl(var(--muted-foreground))]">
                   View, categorize, and approve expenses tied to the eterra account.
                 </p>
-                <Button variant="outline" className="w-full" onClick={handleOpenEterraExpenses}>
+                <Button
+                  className="w-full bg-emerald-600 text-white hover:bg-emerald-700 border border-emerald-600"
+                  onClick={handleOpenEterraExpenses}
+                >
                   Open eterra Expenses
                 </Button>
               </CardContent>
@@ -87,7 +90,10 @@ export default function DashboardPage() {
                 <p className="text-sm text-[hsl(var(--muted-foreground))]">
                   Keep personal spending separate while still tracking totals and receipts.
                 </p>
-                <Button variant="outline" className="w-full" onClick={handleOpenPrivateExpenses}>
+                <Button
+                  className="w-full bg-emerald-600 text-white hover:bg-emerald-700 border border-emerald-600"
+                  onClick={handleOpenPrivateExpenses}
+                >
                   Open Privat Expenses
                 </Button>
               </CardContent>
@@ -102,7 +108,10 @@ export default function DashboardPage() {
                 <p className="text-sm text-[hsl(var(--muted-foreground))]">
                   Run quick financial calculations before 3D printing.
                 </p>
-                <Button variant="outline" className="w-full" onClick={handleOpenCalculator}>
+                <Button
+                  className="w-full bg-emerald-600 text-white hover:bg-emerald-700 border border-emerald-600"
+                  onClick={handleOpenCalculator}
+                >
                   Open Calculator
                 </Button>
               </CardContent>

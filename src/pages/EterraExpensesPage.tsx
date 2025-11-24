@@ -632,7 +632,7 @@ export default function EterraExpensesPage() {
           </div>
         </section>
 
-        <section className="grid gap-6 lg:grid-cols-1">
+        <section className="grid gap-6 lg:grid-cols-2">
           <Card className="shadow-sm">
             <CardHeader>
               <CardTitle>Largest recorded sale</CardTitle>
@@ -664,56 +664,42 @@ export default function EterraExpensesPage() {
           </Card>
         </section>
 
-        <section className="space-y-4">
-          <div className="grid gap-3 md:grid-cols-3">
-            <div>
-              <Label htmlFor="sale-status-filter" className="text-sm text-[hsl(var(--muted-foreground))]">
-                Sales status
-              </Label>
-              <select
-                id="sale-status-filter"
-                className="mt-1 w-full rounded-md border border-[hsl(var(--border))] bg-transparent px-3 py-2 text-sm"
-                value={saleStatusFilter}
-                onChange={(e) => setSaleStatusFilter(e.target.value as 'all' | 'pending' | 'received')}
-              >
-                <option value="all">All</option>
-                <option value="pending">Pending</option>
-                <option value="received">Received</option>
-              </select>
-            </div>
-            <div>
-              <Label htmlFor="sale-search" className="text-sm text-[hsl(var(--muted-foreground))]">
-                Search sales
-              </Label>
-              <Input
-                id="sale-search"
-                className="mt-1"
-                placeholder="Description, channel, recorder"
-                value={saleSearch}
-                onChange={(e) => setSaleSearch(e.target.value)}
-              />
-            </div>
-            <div>
-              <Label htmlFor="purchase-search" className="text-sm text-[hsl(var(--muted-foreground))]">
-                Search purchases
-              </Label>
-              <Input
-                id="purchase-search"
-                className="mt-1"
-                placeholder="Description or recorder"
-                value={purchaseSearch}
-                onChange={(e) => setPurchaseSearch(e.target.value)}
-              />
-            </div>
-          </div>
-
-          <div className="grid gap-6 lg:grid-cols-1">
+        <section className="grid gap-6 lg:grid-cols-1">
           <Card className="shadow-sm">
             <CardHeader>
               <CardTitle>Recent sales</CardTitle>
               <CardDescription>Newest entries first. Includes pending receivables.</CardDescription>
             </CardHeader>
             <CardContent className="space-y-3">
+              <div className="grid gap-3 md:grid-cols-2">
+                <div>
+                  <Label htmlFor="sale-status-filter" className="text-sm text-[hsl(var(--muted-foreground))]">
+                    Sales status
+                  </Label>
+                  <select
+                    id="sale-status-filter"
+                    className="mt-1 w-full rounded-md border border-[hsl(var(--border))] bg-transparent px-3 py-2 text-sm"
+                    value={saleStatusFilter}
+                    onChange={(e) => setSaleStatusFilter(e.target.value as 'all' | 'pending' | 'received')}
+                  >
+                    <option value="all">All</option>
+                    <option value="pending">Pending</option>
+                    <option value="received">Received</option>
+                  </select>
+                </div>
+                <div>
+                  <Label htmlFor="sale-search" className="text-sm text-[hsl(var(--muted-foreground))]">
+                    Search sales
+                  </Label>
+                  <Input
+                    id="sale-search"
+                    className="mt-1"
+                    placeholder="Description, channel, recorder"
+                    value={saleSearch}
+                    onChange={(e) => setSaleSearch(e.target.value)}
+                  />
+                </div>
+              </div>
               {loading ? (
                 <p className="rounded-md border border-dashed border-[hsl(var(--border))] p-3 text-sm text-[hsl(var(--muted-foreground))]">
                   Loading...
@@ -756,6 +742,19 @@ export default function EterraExpensesPage() {
               <CardDescription>Track outgoing cash to keep the box healthy.</CardDescription>
             </CardHeader>
             <CardContent className="space-y-3">
+              <div>
+                <Label htmlFor="purchase-search" className="text-sm text-[hsl(var(--muted-foreground))]">
+                  Search purchases
+                </Label>
+                <Input
+                  id="purchase-search"
+                  className="mt-1"
+                  placeholder="Description or recorder"
+                  value={purchaseSearch}
+                  onChange={(e) => setPurchaseSearch(e.target.value)}
+                />
+              </div>
+
               {loading ? (
                 <p className="rounded-md border border-dashed border-[hsl(var(--border))] p-3 text-sm text-[hsl(var(--muted-foreground))]">
                   Loading...
@@ -779,7 +778,6 @@ export default function EterraExpensesPage() {
               )}
             </CardContent>
           </Card>
-          </div>
         </section>
       </div>
 

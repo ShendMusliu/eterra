@@ -87,10 +87,7 @@ export default function LoginPage() {
             </Button>
 
             <div className="text-sm text-center text-[hsl(var(--muted-foreground))]">
-              Don't have an account?{' '}
-              <Link to="/signup" className="text-[hsl(var(--primary))] hover:underline">
-                Sign up
-              </Link>
+              Need an account? Contact an administrator to be invited.
             </div>
           </CardFooter>
         </form>
