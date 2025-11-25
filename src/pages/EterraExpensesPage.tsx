@@ -6,6 +6,7 @@ import { Card, CardContent, CardDescription, CardHeader, CardTitle } from '@/com
 import { Input } from '@/components/ui/input';
 import { Label } from '@/components/ui/label';
 import { assertNoDataErrors, dataClient, ensureAuthSession } from '@/lib/api-client';
+import { formatTiranaDateTime, getTiranaDateParts, getTiranaNowDateTimeLocal, toISOInTirana } from '@/lib/timezone';
 
 type Sale = {
   id: string;
@@ -38,8 +39,8 @@ const currencyFormatter = new Intl.NumberFormat('en-US', {
 });
 
 const formatCurrency = (value: number) => currencyFormatter.format(value);
-const formatDate = (value: string) => new Date(value).toLocaleString();
-const getInitialDateInput = () => new Date().toISOString().slice(0, 16);
+const formatDate = (value: string) => formatTiranaDateTime(value);
+const getInitialDateInput = () => getTiranaNowDateTimeLocal();
 
 export default function EterraExpensesPage() {
   const { user } = useAuth();
@@ -142,10 +143,10 @@ export default function EterraExpensesPage() {
   }, [user, navigate]);
 
   const summary = useMemo(() => {
-    const now = new Date();
+    const nowParts = getTiranaDateParts();
     const isCurrentMonth = (timestamp: string) => {
-      const date = new Date(timestamp);
-      return date.getMonth() === now.getMonth() && date.getFullYear() === now.getFullYear();
+      const date = getTiranaDateParts(timestamp);
+      return date.month === nowParts.month && date.year === nowParts.year;
     };
 
     const monthlySales = sales.filter((sale) => isCurrentMonth(sale.timestamp));
@@ -263,8 +264,8 @@ export default function EterraExpensesPage() {
     try {
       // Convert datetime-local format (YYYY-MM-DDTHH:mm) to ISO 8601 with seconds
       const timestampISO = saleForm.timestamp
-        ? new Date(saleForm.timestamp).toISOString()
-        : new Date().toISOString();
+        ? toISOInTirana(saleForm.timestamp)
+        : toISOInTirana(getInitialDateInput());
 
       const models = dataClient.models as Record<string, any>;
       const saleModel = models['EterraSale'];
@@ -328,8 +329,8 @@ export default function EterraExpensesPage() {
     try {
       // Convert datetime-local format (YYYY-MM-DDTHH:mm) to ISO 8601 with seconds
       const timestampISO = purchaseForm.timestamp
-        ? new Date(purchaseForm.timestamp).toISOString()
-        : new Date().toISOString();
+        ? toISOInTirana(purchaseForm.timestamp)
+        : toISOInTirana(getInitialDateInput());
 
       const models = dataClient.models as Record<string, any>;
       const purchaseModel = models['EterraPurchase'];

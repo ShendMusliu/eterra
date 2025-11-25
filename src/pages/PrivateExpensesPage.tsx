@@ -6,6 +6,7 @@ import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
 import { Label } from '@/components/ui/label';
 import { assertNoDataErrors, dataClient, ensureAuthSession } from '@/lib/api-client';
+import { formatTiranaDateTime, getTiranaNowDateTimeLocal, toISOInTirana } from '@/lib/timezone';
 
 const MEMBERS = ['Shend Musliu', 'Lorik Syla', 'Gentrit Haziri'] as const;
 type MemberName = (typeof MEMBERS)[number];
@@ -38,8 +39,8 @@ const currencyFormatter = new Intl.NumberFormat('en-US', {
 });
 
 const formatCurrency = (value: number) => currencyFormatter.format(value);
-const formatDate = (value: string) => new Date(value).toLocaleString();
-const getInitialDateInput = () => new Date().toISOString().slice(0, 16);
+const formatDate = (value: string) => formatTiranaDateTime(value);
+const getInitialDateInput = () => getTiranaNowDateTimeLocal();
 
 export default function PrivateExpensesPage() {
   const { user } = useAuth();
@@ -226,8 +227,8 @@ export default function PrivateExpensesPage() {
     try {
       // Convert datetime-local format (YYYY-MM-DDTHH:mm) to ISO 8601 with seconds
       const timestampISO = expenseForm.timestamp
-        ? new Date(expenseForm.timestamp).toISOString()
-        : new Date().toISOString();
+        ? toISOInTirana(expenseForm.timestamp)
+        : toISOInTirana(getInitialDateInput());
 
       const result = await dataClient.models.PrivateExpense.create(
         {
@@ -280,8 +281,8 @@ export default function PrivateExpensesPage() {
     try {
       // Convert datetime-local format (YYYY-MM-DDTHH:mm) to ISO 8601 with seconds
       const timestampISO = repaymentForm.timestamp
-        ? new Date(repaymentForm.timestamp).toISOString()
-        : new Date().toISOString();
+        ? toISOInTirana(repaymentForm.timestamp)
+        : toISOInTirana(getInitialDateInput());
 
       const result = await dataClient.models.PrivateRepayment.create(
         {
