@@ -1,5 +1,4 @@
-import { defineBackend } from '@aws-amplify/backend';
-import { defineFunction, defineHttpApi } from '@aws-amplify/backend';
+import { defineBackend, defineFunction } from '@aws-amplify/backend';
 import { auth } from './auth/resource';
 import { data } from './data/resource';
 
@@ -17,19 +16,8 @@ const reminderSender = defineFunction({
   },
 });
 
-const api = defineHttpApi({
-  name: 'reminderApi',
-  routes: {
-    'POST /reminders': {
-      function: reminderSender,
-      authorizationType: 'userPool',
-    },
-  },
-});
-
 const backend = defineBackend({
   auth,
   data,
   reminderSender,
-  api,
 });
