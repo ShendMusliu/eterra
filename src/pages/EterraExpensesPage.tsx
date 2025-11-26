@@ -240,6 +240,9 @@ export default function EterraExpensesPage() {
     });
   }, [sales, saleStatusFilter, saleSearch]);
 
+  const isDefaultSalesView = saleStatusFilter === 'all' && !saleSearch.trim();
+  const visibleSales = isDefaultSalesView ? filteredSales.slice(0, 5) : filteredSales;
+
   const filteredPurchases = useMemo(() => {
     const query = purchaseSearch.toLowerCase();
     return purchases.filter((purchase) => {
@@ -710,7 +713,7 @@ export default function EterraExpensesPage() {
                   No sales logged yet.
                 </p>
               ) : (
-                filteredSales.slice(0, 5).map((sale) => (
+                visibleSales.map((sale) => (
                   <article key={sale.id} className="rounded-xl border border-[hsl(var(--border))] bg-[hsl(var(--card))]/70 p-3">
                     <div className="flex items-center justify-between text-sm">
                       <span className="font-medium">{sale.description}</span>
