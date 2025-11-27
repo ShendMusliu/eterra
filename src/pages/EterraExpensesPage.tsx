@@ -265,29 +265,35 @@ export default function EterraExpensesPage() {
   }, [sales, purchases]);
 
   const handleMarkReceived = async (saleId: string) => {
+    await handleUpdateStatus(saleId, 'received');
+  };
+
+  const handleUpdateStatus = async (saleId: string, nextStatus: 'waiting' | 'pending' | 'received') => {
     try {
       const models = dataClient.models as Record<string, any>;
       const saleModel = models['EterraSale'];
       const saleBefore = sales.find((sale) => sale.id === saleId);
+      if (!saleBefore) return;
+
       const result = await saleModel?.update?.(
         {
           id: saleId,
-          paymentStatus: 'received',
+          paymentStatus: nextStatus,
         },
         { authMode: 'userPool' }
       );
       assertNoDataErrors(result);
       if (result?.data) {
         setSales((current) =>
-          current.map((sale) => (sale.id === saleId ? { ...sale, paymentStatus: 'received' } : sale))
+          current.map((sale) => (sale.id === saleId ? { ...sale, paymentStatus: nextStatus } : sale))
         );
 
-        if (saleBefore && saleBefore.paymentStatus !== 'received') {
+        if (saleBefore.paymentStatus !== nextStatus) {
           await recordHistoryEntries(saleId, [
             {
               field: 'paymentStatus',
               oldValue: saleBefore.paymentStatus,
-              newValue: 'received',
+              newValue: nextStatus,
               changeType: 'status',
               changedById: userId,
               changedByName: displayName,
@@ -297,7 +303,7 @@ export default function EterraExpensesPage() {
         }
       }
     } catch (err) {
-      console.error('Failed to mark sale as received', err);
+      console.error('Failed to update status', err);
       setError('Could not update payment status. Please try again.');
     } finally {
       setConfirmSaleId(null);
@@ -719,6 +725,21 @@ export default function EterraExpensesPage() {
                 </div>
                 <div className="grid gap-4 sm:grid-cols-1">
                   <div className="space-y-2">
+                    <Label htmlFor="payment-status">Payment status</Label>
+                    <select
+                      id="payment-status"
+                      className="w-full rounded-md border border-[hsl(var(--border))] bg-transparent px-3 py-2"
+                      value={saleForm.paymentStatus}
+                      onChange={(event) => setSaleForm((current) => ({ ...current, paymentStatus: event.target.value }))}
+                    >
+                      {PAYMENT_STATUS_OPTIONS.map((option) => (
+                        <option key={option.value} value={option.value}>
+                          {option.label}
+                        </option>
+                      ))}
+                    </select>
+                  </div>
+                  <div className="space-y-2">
                     <Label htmlFor="sale-type">Sale type</Label>
                     <select
                       id="sale-type"
@@ -728,24 +749,10 @@ export default function EterraExpensesPage() {
                     >
                       <option value="Privat">Privat (in-person)</option>
                       <option value="GjirafaMall">GjirafaMall</option>
+                      <option value="Posta cheetah">Posta cheetah</option>
                       <option value="other">Other channel</option>
                     </select>
                   </div>
-                  <div className="space-y-2">
-                    <Label htmlFor="payment-status">Payment status</Label>
-                    <select
-                    id="payment-status"
-                    className="w-full rounded-md border border-[hsl(var(--border))] bg-transparent px-3 py-2"
-                    value={saleForm.paymentStatus}
-                    onChange={(event) => setSaleForm((current) => ({ ...current, paymentStatus: event.target.value }))}
-                  >
-                    {PAYMENT_STATUS_OPTIONS.map((option) => (
-                      <option key={option.value} value={option.value}>
-                        {option.label}
-                      </option>
-                    ))}
-                  </select>
-                </div>
                 </div>
                 {saleForm.saleType === 'other' && (
                   <div className="space-y-2">
@@ -957,7 +964,17 @@ export default function EterraExpensesPage() {
                         >
                           {sale.paymentStatus}
                         </span>
-                        {sale.paymentStatus !== 'received' && (
+                        {sale.paymentStatus === 'waiting' && (
+                          <Button
+                            variant="outline"
+                            size="sm"
+                            className="px-2"
+                            onClick={() => handleUpdateStatus(sale.id, 'pending')}
+                          >
+                            Mark pending
+                          </Button>
+                        )}
+                        {sale.paymentStatus === 'pending' && (
                           <Button
                             variant="outline"
                             size="sm"
@@ -987,17 +1004,18 @@ export default function EterraExpensesPage() {
                           </div>
                           <div className="space-y-1">
                             <Label htmlFor={`edit-sale-type-${sale.id}`}>Sale type</Label>
-                            <select
-                              id={`edit-sale-type-${sale.id}`}
-                              className="w-full rounded-md border border-[hsl(var(--border))] bg-transparent px-3 py-2"
-                              value={editingSaleForm.saleType}
-                              onChange={(e) => setEditingSaleForm((prev) => ({ ...prev, saleType: e.target.value }))}
-                            >
-                              <option value="Privat">Privat (in-person)</option>
-                              <option value="GjirafaMall">GjirafaMall</option>
-                              <option value="other">Other channel</option>
-                            </select>
-                          </div>
+                          <select
+                            id={`edit-sale-type-${sale.id}`}
+                            className="w-full rounded-md border border-[hsl(var(--border))] bg-transparent px-3 py-2"
+                            value={editingSaleForm.saleType}
+                            onChange={(e) => setEditingSaleForm((prev) => ({ ...prev, saleType: e.target.value }))}
+                          >
+                            <option value="Privat">Privat (in-person)</option>
+                            <option value="GjirafaMall">GjirafaMall</option>
+                            <option value="Posta cheetah">Posta cheetah</option>
+                            <option value="other">Other channel</option>
+                          </select>
+                        </div>
                         </div>
                         <div className="grid gap-3 md:grid-cols-3">
                           <div className="space-y-1">
