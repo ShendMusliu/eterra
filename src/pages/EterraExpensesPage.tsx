@@ -15,7 +15,7 @@ type Sale = {
   amount: number;
   shippingCost?: number;
   netAfterShipping: number;
-  paymentStatus: string; // 'pending' | 'received'
+  paymentStatus: string; // 'pending' | 'waiting' | 'received'
   recordedById: string;
   recordedByName: string;
   notes?: string;
@@ -31,6 +31,24 @@ type Purchase = {
   recordedByName: string;
   notes?: string;
 };
+
+type SaleHistory = {
+  id: string;
+  saleId: string;
+  field: string;
+  oldValue?: string;
+  newValue?: string;
+  changeType: string;
+  changedById: string;
+  changedByName: string;
+  timestamp: string;
+};
+
+const PAYMENT_STATUS_OPTIONS = [
+  { value: 'pending', label: 'Pending' },
+  { value: 'waiting', label: 'Waiting' },
+  { value: 'received', label: 'Received' },
+];
 
 const currencyFormatter = new Intl.NumberFormat('en-US', {
   style: 'currency',
@@ -50,6 +68,16 @@ export default function EterraExpensesPage() {
 
   const [sales, setSales] = useState<Sale[]>([]);
   const [purchases, setPurchases] = useState<Purchase[]>([]);
+  const [saleHistories, setSaleHistories] = useState<Record<string, SaleHistory[]>>({});
+  const [editingSaleId, setEditingSaleId] = useState<string | null>(null);
+  const [editingSaleForm, setEditingSaleForm] = useState({
+    description: '',
+    amount: '',
+    saleType: 'Privat',
+    shippingCost: '',
+    paymentStatus: 'pending',
+    notes: '',
+  });
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState<string | null>(null);
 
@@ -71,7 +99,7 @@ export default function EterraExpensesPage() {
     notes: '',
   });
 
-  const [saleStatusFilter, setSaleStatusFilter] = useState<'all' | 'pending' | 'received'>('all');
+  const [saleStatusFilter, setSaleStatusFilter] = useState<'all' | 'pending' | 'waiting' | 'received'>('all');
   const [saleSearch, setSaleSearch] = useState('');
   const [purchaseSearch, setPurchaseSearch] = useState('');
   const [confirmSaleId, setConfirmSaleId] = useState<string | null>(null);
@@ -90,13 +118,18 @@ export default function EterraExpensesPage() {
         const models = dataClient.models as Record<string, any>;
         const saleModel = models['EterraSale'];
         const purchaseModel = models['EterraPurchase'];
+        const historyModel = models['EterraSaleHistory'];
 
-        const [salesResult, purchasesResult] = await Promise.all([
+        const [salesResult, purchasesResult, historyResult] = await Promise.all([
           saleModel?.list?.({ authMode: 'userPool' }) ?? { data: [] },
           purchaseModel?.list?.({ authMode: 'userPool' }) ?? { data: [] },
+          historyModel?.list?.({ authMode: 'userPool' }) ?? { data: [] },
         ]);
         assertNoDataErrors(salesResult);
         assertNoDataErrors(purchasesResult);
+        if (historyModel) {
+          assertNoDataErrors(historyResult);
+        }
 
         const normalizedSales =
           salesResult?.data
@@ -130,6 +163,30 @@ export default function EterraExpensesPage() {
 
         setSales(normalizedSales);
         setPurchases(normalizedPurchases);
+        if (historyResult?.data) {
+          const histories = (historyResult.data as any[]).reduce<Record<string, SaleHistory[]>>((acc, item) => {
+            const entry: SaleHistory = {
+              id: item.id,
+              saleId: item.saleId,
+              field: item.field,
+              oldValue: item.oldValue ?? undefined,
+              newValue: item.newValue ?? undefined,
+              changeType: item.changeType,
+              changedById: item.changedById,
+              changedByName: item.changedByName,
+              timestamp: item.timestamp,
+            };
+            acc[entry.saleId] = acc[entry.saleId] ? [...acc[entry.saleId], entry] : [entry];
+            return acc;
+          }, {});
+          // sort newest first
+          Object.keys(histories).forEach((key) => {
+            histories[key] = histories[key].sort((a, b) => (a.timestamp < b.timestamp ? 1 : -1));
+          });
+          setSaleHistories(histories);
+        } else {
+          setSaleHistories({});
+        }
         setError(null);
       } catch (err) {
         console.error('Failed to load data', err);
@@ -154,7 +211,7 @@ export default function EterraExpensesPage() {
 
     const monthlyRevenue = monthlySales.reduce((sum, sale) => sum + sale.netAfterShipping, 0);
     const pendingReceivables = monthlySales
-      .filter((sale) => sale.paymentStatus === 'pending')
+      .filter((sale) => sale.paymentStatus === 'pending' || sale.paymentStatus === 'waiting')
       .reduce((sum, sale) => sum + sale.netAfterShipping, 0);
     const monthlySpend = monthlyPurchases.reduce((sum, purchase) => sum + purchase.amount, 0);
     const shippingCostsMonth = monthlySales.reduce((sum, sale) => sum + (sale.shippingCost ?? 0), 0);
@@ -205,6 +262,7 @@ export default function EterraExpensesPage() {
     try {
       const models = dataClient.models as Record<string, any>;
       const saleModel = models['EterraSale'];
+      const saleBefore = sales.find((sale) => sale.id === saleId);
       const result = await saleModel?.update?.(
         {
           id: saleId,
@@ -217,6 +275,20 @@ export default function EterraExpensesPage() {
         setSales((current) =>
           current.map((sale) => (sale.id === saleId ? { ...sale, paymentStatus: 'received' } : sale))
         );
+
+        if (saleBefore && saleBefore.paymentStatus !== 'received') {
+          await recordHistoryEntries(saleId, [
+            {
+              field: 'paymentStatus',
+              oldValue: saleBefore.paymentStatus,
+              newValue: 'received',
+              changeType: 'status',
+              changedById: userId,
+              changedByName: displayName,
+              timestamp: new Date().toISOString(),
+            },
+          ]);
+        }
       }
     } catch (err) {
       console.error('Failed to mark sale as received', err);
@@ -253,6 +325,152 @@ export default function EterraExpensesPage() {
       );
     });
   }, [purchases, purchaseSearch]);
+
+  const handleStartEditSale = (sale: Sale) => {
+    setEditingSaleId(sale.id);
+    setEditingSaleForm({
+      description: sale.description,
+      amount: sale.amount.toString(),
+      saleType: sale.saleType,
+      shippingCost: (sale.shippingCost ?? 0).toString(),
+      paymentStatus: sale.paymentStatus || 'pending',
+      notes: sale.notes ?? '',
+    });
+  };
+
+  const handleCancelEditSale = () => {
+    setEditingSaleId(null);
+  };
+
+  const recordHistoryEntries = async (saleId: string, entries: Omit<SaleHistory, 'id' | 'saleId'>[]) => {
+    const models = dataClient.models as Record<string, any>;
+    const historyModel = models['EterraSaleHistory'];
+    if (!historyModel) return;
+
+    for (const entry of entries) {
+      const result = await historyModel.create(
+        {
+          saleId,
+          field: entry.field,
+          oldValue: entry.oldValue,
+          newValue: entry.newValue,
+          changeType: entry.changeType,
+          changedById: entry.changedById,
+          changedByName: entry.changedByName,
+          timestamp: entry.timestamp,
+        },
+        { authMode: 'userPool' }
+      );
+      assertNoDataErrors(result);
+
+      if (result?.data) {
+        setSaleHistories((current) => {
+          const list = current[saleId] ? [...current[saleId]] : [];
+          const newEntry: SaleHistory = {
+            id: result.data.id,
+            saleId,
+            field: result.data.field,
+            oldValue: result.data.oldValue ?? undefined,
+            newValue: result.data.newValue ?? undefined,
+            changeType: result.data.changeType,
+            changedById: result.data.changedById,
+            changedByName: result.data.changedByName,
+            timestamp: result.data.timestamp,
+          };
+          list.unshift(newEntry);
+          return { ...current, [saleId]: list };
+        });
+      }
+    }
+  };
+
+  const handleUpdateSale = async (event: React.FormEvent) => {
+    event.preventDefault();
+    if (!editingSaleId) return;
+
+    const original = sales.find((sale) => sale.id === editingSaleId);
+    if (!original) return;
+
+    const amountValue = parseFloat(editingSaleForm.amount);
+    const shippingValue = parseFloat(editingSaleForm.shippingCost) || 0;
+    if (!amountValue || amountValue <= 0) return;
+
+    const netAfterShipping = Math.max(amountValue - shippingValue, 0);
+    const saleType =
+      editingSaleForm.saleType === 'other'
+        ? editingSaleForm.saleType
+        : editingSaleForm.saleType || 'Privat';
+
+    try {
+      const models = dataClient.models as Record<string, any>;
+      const saleModel = models['EterraSale'];
+      const result = await saleModel.update(
+        {
+          id: editingSaleId,
+          description: editingSaleForm.description.trim() || 'Sale',
+          saleType,
+          amount: amountValue,
+          shippingCost: shippingValue || undefined,
+          netAfterShipping,
+          paymentStatus: editingSaleForm.paymentStatus,
+          notes: editingSaleForm.notes.trim() || undefined,
+        },
+        { authMode: 'userPool' }
+      );
+      assertNoDataErrors(result);
+
+      if (result?.data) {
+        setSales((current) =>
+          current.map((sale) =>
+            sale.id === editingSaleId
+              ? {
+                  ...sale,
+                  description: result.data.description,
+                  saleType: result.data.saleType,
+                  amount: result.data.amount,
+                  shippingCost: result.data.shippingCost ?? 0,
+                  netAfterShipping: result.data.netAfterShipping,
+                  paymentStatus: result.data.paymentStatus,
+                  notes: result.data.notes ?? undefined,
+                }
+              : sale
+          )
+        );
+
+        const changes: Omit<SaleHistory, 'id' | 'saleId'>[] = [];
+        const now = new Date().toISOString();
+        const pushChange = (field: string, oldValue?: any, newValue?: any, changeType = 'edit') => {
+          if (`${oldValue ?? ''}` === `${newValue ?? ''}`) return;
+          changes.push({
+            field,
+            oldValue: oldValue !== undefined ? String(oldValue) : undefined,
+            newValue: newValue !== undefined ? String(newValue) : undefined,
+            changeType,
+            changedById: userId,
+            changedByName: displayName,
+            timestamp: now,
+          });
+        };
+
+        pushChange('description', original.description, result.data.description);
+        pushChange('saleType', original.saleType, result.data.saleType);
+        pushChange('amount', original.amount, result.data.amount);
+        pushChange('shippingCost', original.shippingCost ?? 0, result.data.shippingCost ?? 0);
+        pushChange('netAfterShipping', original.netAfterShipping, result.data.netAfterShipping);
+        pushChange('notes', original.notes ?? '', result.data.notes ?? '');
+        pushChange('paymentStatus', original.paymentStatus, result.data.paymentStatus, 'status');
+
+        if (changes.length) {
+          await recordHistoryEntries(editingSaleId, changes);
+        }
+      }
+    } catch (err) {
+      console.error('Failed to update sale', err);
+      setError('Failed to update sale. Please try again.');
+    } finally {
+      setEditingSaleId(null);
+    }
+  };
 
   const handleAddSale = async (event: React.FormEvent) => {
     event.preventDefault();
@@ -510,15 +728,18 @@ export default function EterraExpensesPage() {
                   <div className="space-y-2">
                     <Label htmlFor="payment-status">Payment status</Label>
                     <select
-                      id="payment-status"
-                      className="w-full rounded-md border border-[hsl(var(--border))] bg-transparent px-3 py-2"
-                      value={saleForm.paymentStatus}
-                      onChange={(event) => setSaleForm((current) => ({ ...current, paymentStatus: event.target.value }))}
-                    >
-                      <option value="pending">Pending</option>
-                      <option value="received">Received</option>
-                    </select>
-                  </div>
+                    id="payment-status"
+                    className="w-full rounded-md border border-[hsl(var(--border))] bg-transparent px-3 py-2"
+                    value={saleForm.paymentStatus}
+                    onChange={(event) => setSaleForm((current) => ({ ...current, paymentStatus: event.target.value }))}
+                  >
+                    {PAYMENT_STATUS_OPTIONS.map((option) => (
+                      <option key={option.value} value={option.value}>
+                        {option.label}
+                      </option>
+                    ))}
+                  </select>
+                </div>
                 </div>
                 {saleForm.saleType === 'other' && (
                   <div className="space-y-2">
@@ -684,10 +905,11 @@ export default function EterraExpensesPage() {
                     id="sale-status-filter"
                     className="mt-1 w-full rounded-md border border-[hsl(var(--border))] bg-transparent px-3 py-2 text-sm"
                     value={saleStatusFilter}
-                    onChange={(e) => setSaleStatusFilter(e.target.value as 'all' | 'pending' | 'received')}
+                    onChange={(e) => setSaleStatusFilter(e.target.value as 'all' | 'pending' | 'waiting' | 'received')}
                   >
                     <option value="all">All</option>
                     <option value="pending">Pending</option>
+                    <option value="waiting">Waiting</option>
                     <option value="received">Received</option>
                   </select>
                 </div>
@@ -715,25 +937,141 @@ export default function EterraExpensesPage() {
               ) : (
                 visibleSales.map((sale) => (
                   <article key={sale.id} className="rounded-xl border border-[hsl(var(--border))] bg-[hsl(var(--card))]/70 p-3">
-                    <div className="flex items-center justify-between text-sm">
+                    <div className="flex items-center justify-between gap-2 text-sm">
                       <span className="font-medium">{sale.description}</span>
-                      {sale.paymentStatus === "pending" ? (
-                        <button
-                          type="button"
-                          className="text-xs uppercase tracking-[0.2em] text-[hsl(var(--destructive))] underline-offset-4 hover:underline"
-                          onClick={() => setConfirmSaleId(sale.id)}
+                      <div className="flex items-center gap-2">
+                        <span
+                          className={`text-xs uppercase tracking-[0.2em] ${
+                            sale.paymentStatus === 'received'
+                              ? 'text-emerald-600'
+                              : sale.paymentStatus === 'waiting'
+                              ? 'text-amber-600'
+                              : 'text-[hsl(var(--destructive))]'
+                          }`}
                         >
-                          Pending
-                        </button>
-                      ) : (
-                        <span className="text-xs uppercase tracking-[0.2em] text-emerald-600">Received</span>
-                      )}
+                          {sale.paymentStatus}
+                        </span>
+                        {sale.paymentStatus !== 'received' && (
+                          <Button
+                            variant="outline"
+                            size="sm"
+                            className="px-2"
+                            onClick={() => setConfirmSaleId(sale.id)}
+                          >
+                            Mark received
+                          </Button>
+                        )}
+                        <Button variant="ghost" size="sm" className="px-2" onClick={() => handleStartEditSale(sale)}>
+                          Edit
+                        </Button>
+                      </div>
                     </div>
-                    <p className="text-lg font-semibold">{formatCurrency(sale.netAfterShipping)}</p>
-                    <p className="text-sm text-[hsl(var(--muted-foreground))]">
-                      {sale.saleType} – {formatDate(sale.timestamp)} – recorded by {sale.recordedByName}
-                    </p>
-                    {sale.notes && <p className="text-sm text-[hsl(var(--muted-foreground))]">{sale.notes}</p>}
+
+                    {editingSaleId === sale.id ? (
+                      <form className="mt-3 space-y-3" onSubmit={handleUpdateSale}>
+                        <div className="grid gap-3 md:grid-cols-2">
+                          <div className="space-y-1">
+                            <Label htmlFor={`edit-description-${sale.id}`}>Description</Label>
+                            <Input
+                              id={`edit-description-${sale.id}`}
+                              value={editingSaleForm.description}
+                              onChange={(e) => setEditingSaleForm((prev) => ({ ...prev, description: e.target.value }))}
+                              required
+                            />
+                          </div>
+                          <div className="space-y-1">
+                            <Label htmlFor={`edit-sale-type-${sale.id}`}>Sale type</Label>
+                            <select
+                              id={`edit-sale-type-${sale.id}`}
+                              className="w-full rounded-md border border-[hsl(var(--border))] bg-transparent px-3 py-2"
+                              value={editingSaleForm.saleType}
+                              onChange={(e) => setEditingSaleForm((prev) => ({ ...prev, saleType: e.target.value }))}
+                            >
+                              <option value="Privat">Privat (in-person)</option>
+                              <option value="GjirafaMall">GjirafaMall</option>
+                              <option value="other">Other channel</option>
+                            </select>
+                          </div>
+                        </div>
+                        <div className="grid gap-3 md:grid-cols-3">
+                          <div className="space-y-1">
+                            <Label htmlFor={`edit-amount-${sale.id}`}>Amount (EUR)</Label>
+                            <Input
+                              id={`edit-amount-${sale.id}`}
+                              type="number"
+                              min="0"
+                              step="0.01"
+                              value={editingSaleForm.amount}
+                              onChange={(e) => setEditingSaleForm((prev) => ({ ...prev, amount: e.target.value }))}
+                              required
+                            />
+                          </div>
+                          <div className="space-y-1">
+                            <Label htmlFor={`edit-shipping-${sale.id}`}>Shipping (EUR)</Label>
+                            <Input
+                              id={`edit-shipping-${sale.id}`}
+                              type="number"
+                              min="0"
+                              step="0.01"
+                              value={editingSaleForm.shippingCost}
+                              onChange={(e) => setEditingSaleForm((prev) => ({ ...prev, shippingCost: e.target.value }))}
+                            />
+                          </div>
+                          <div className="space-y-1">
+                            <Label htmlFor={`edit-status-${sale.id}`}>Status</Label>
+                            <select
+                              id={`edit-status-${sale.id}`}
+                              className="w-full rounded-md border border-[hsl(var(--border))] bg-transparent px-3 py-2"
+                              value={editingSaleForm.paymentStatus}
+                              onChange={(e) => setEditingSaleForm((prev) => ({ ...prev, paymentStatus: e.target.value }))}
+                            >
+                              {PAYMENT_STATUS_OPTIONS.map((option) => (
+                                <option key={option.value} value={option.value}>
+                                  {option.label}
+                                </option>
+                              ))}
+                            </select>
+                          </div>
+                        </div>
+                        <div className="space-y-1">
+                          <Label htmlFor={`edit-notes-${sale.id}`}>Notes</Label>
+                          <textarea
+                            id={`edit-notes-${sale.id}`}
+                            className="w-full rounded-md border border-[hsl(var(--border))] bg-transparent px-3 py-2 text-sm"
+                            value={editingSaleForm.notes}
+                            onChange={(e) => setEditingSaleForm((prev) => ({ ...prev, notes: e.target.value }))}
+                          />
+                        </div>
+                        <div className="flex gap-2 justify-end">
+                          <Button variant="outline" type="button" onClick={handleCancelEditSale}>
+                            Cancel
+                          </Button>
+                          <Button type="submit">Save changes</Button>
+                        </div>
+                      </form>
+                    ) : (
+                      <>
+                        <p className="text-lg font-semibold">{formatCurrency(sale.netAfterShipping)}</p>
+                        <p className="text-sm text-[hsl(var(--muted-foreground))]">
+                          {sale.saleType} - {formatDate(sale.timestamp)} - recorded by {sale.recordedByName}
+                        </p>
+                        {sale.notes && <p className="text-sm text-[hsl(var(--muted-foreground))]">{sale.notes}</p>}
+                        {saleHistories[sale.id]?.length ? (
+                          <div className="mt-2 border-t border-dashed border-[hsl(var(--border))] pt-2">
+                            <p className="text-xs font-semibold text-[hsl(var(--muted-foreground))]">History (latest)</p>
+                            <ul className="space-y-1 text-xs text-[hsl(var(--muted-foreground))]">
+                              {saleHistories[sale.id].slice(0, 3).map((history) => (
+                                <li key={history.id}>
+                                  <span className="font-medium text-[hsl(var(--foreground))]">{history.changedByName}</span>{' '}
+                                  changed <span className="font-medium">{history.field}</span> from "{history.oldValue ?? '—'}" to "
+                                  {history.newValue ?? '—'}" on {formatDate(history.timestamp)}
+                                </li>
+                              ))}
+                            </ul>
+                          </div>
+                        ) : null}
+                      </>
+                    )}
                   </article>
                 ))
               )}

@@ -57,6 +57,19 @@ const schema = a.schema({
       notes: a.string(),
     })
     .authorization((allow) => [allow.authenticated(), allow.owner(), allow.group('admin')]),
+
+  EterraSaleHistory: a
+    .model({
+      saleId: a.id().required(),
+      field: a.string().required(), // e.g., paymentStatus, amount
+      oldValue: a.string(),
+      newValue: a.string(),
+      changeType: a.string().required(), // status | edit
+      changedById: a.string().required(),
+      changedByName: a.string().required(),
+      timestamp: a.datetime().required(),
+    })
+    .authorization((allow) => [allow.authenticated(), allow.owner(), allow.group('admin')]),
 });
 
 export type Schema = ClientSchema<typeof schema>;

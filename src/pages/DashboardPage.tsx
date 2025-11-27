@@ -1,23 +1,13 @@
 import { useState } from 'react';
-import { fetchAuthSession } from 'aws-amplify/auth';
 import { useAuth } from '@/contexts/AuthContext';
 import { useNavigate } from 'react-router-dom';
 import { Button } from '@/components/ui/button';
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from '@/components/ui/card';
-import { Input } from '@/components/ui/input';
-import { Label } from '@/components/ui/label';
-import { getTiranaNowDateTimeLocal } from '@/lib/timezone';
 
 export default function DashboardPage() {
   const { user, signOut } = useAuth();
   const displayName = user?.name || user?.email || 'User';
   const navigate = useNavigate();
-  const [reminderForm, setReminderForm] = useState({
-    message: '',
-    recipient: '',
-    when: getTiranaNowDateTimeLocal(),
-  });
-  const [reminderStatus, setReminderStatus] = useState<string | null>(null);
 
   const handleSignOut = async () => {
     await signOut();
@@ -28,43 +18,6 @@ export default function DashboardPage() {
   const handleOpenCalculator = () => navigate('/calculator');
   const handleOpenEterraExpenses = () => navigate('/eterra-expenses');
   const handleOpenProfile = () => navigate('/profile');
-
-  const handleReminderSubmit = async (event: React.FormEvent) => {
-    event.preventDefault();
-    if (!reminderForm.message.trim() || !reminderForm.recipient || !reminderForm.when) {
-      setReminderStatus('Fill the message, number, and date/time.');
-      return;
-    }
-
-    try {
-      const session = await fetchAuthSession();
-      const token = session?.tokens?.accessToken?.toString();
-
-      const response = await fetch('/reminders', {
-        method: 'POST',
-        headers: {
-          'Content-Type': 'application/json',
-          ...(token ? { Authorization: `Bearer ${token}` } : {}),
-        },
-        body: JSON.stringify({
-          message: reminderForm.message.trim(),
-          recipient: reminderForm.recipient,
-          when: reminderForm.when,
-        }),
-      });
-
-      if (!response.ok) {
-        const text = await response.text();
-        throw new Error(text || 'Request failed');
-      }
-
-      setReminderStatus('Reminder sent to WhatsApp (backend success).');
-      setReminderForm((prev) => ({ ...prev, message: '' }));
-    } catch (error: any) {
-      console.error('Failed to send reminder', error);
-      setReminderStatus(error?.message || 'Failed to send reminder');
-    }
-  };
 
   return (
     <div className="min-h-screen bg-[hsl(var(--background))]">
@@ -159,65 +112,6 @@ export default function DashboardPage() {
                 >
                   Open Calculator
                 </Button>
-              </CardContent>
-            </Card>
-
-            <Card className="hover:shadow-lg transition-shadow lg:col-span-3">
-              <CardHeader>
-                <CardTitle>Set Reminder (WhatsApp)</CardTitle>
-                <CardDescription>
-                  Create a reminder with text, choose the number and date. (Needs Twilio backend connection to send.)
-                </CardDescription>
-              </CardHeader>
-              <CardContent>
-                <form className="space-y-4" onSubmit={handleReminderSubmit}>
-                  <div className="space-y-2">
-                    <Label htmlFor="reminder-message">Reminder text</Label>
-                    <textarea
-                      id="reminder-message"
-                      className="w-full rounded-md border border-[hsl(var(--border))] bg-transparent px-3 py-2 text-sm"
-                      placeholder="E.g. follow up open orders"
-                      value={reminderForm.message}
-                      onChange={(e) => setReminderForm((prev) => ({ ...prev, message: e.target.value }))}
-                      required
-                    />
-                  </div>
-                  <div className="grid gap-4 md:grid-cols-2">
-                    <div className="space-y-2">
-                      <Label htmlFor="reminder-recipient">Recipient</Label>
-                      <select
-                        id="reminder-recipient"
-                        className="w-full rounded-md border border-[hsl(var(--border))] bg-transparent px-3 py-2"
-                        value={reminderForm.recipient}
-                        onChange={(e) => setReminderForm((prev) => ({ ...prev, recipient: e.target.value }))}
-                        required
-                      >
-                        <option value="" disabled>
-                          Zgjidh numrin
-                        </option>
-                        <option value="+38349488774">Shend (+38349488774)</option>
-                        <option value="+38349101261">Lorik (+38349101261)</option>
-                        <option value="+38345963301">Gentrit (+38345963301)</option>
-                      </select>
-                    </div>
-                    <div className="space-y-2">
-                      <Label htmlFor="reminder-when">Date & time (Tirane)</Label>
-                      <Input
-                        id="reminder-when"
-                        type="datetime-local"
-                        value={reminderForm.when}
-                        onChange={(e) => setReminderForm((prev) => ({ ...prev, when: e.target.value }))}
-                        required
-                      />
-                    </div>
-                  </div>
-                  <Button type="submit" className="w-full">
-                    Set Reminder
-                  </Button>
-                  {reminderStatus && (
-                    <p className="text-sm text-[hsl(var(--muted-foreground))]">{reminderStatus}</p>
-                  )}
-                </form>
               </CardContent>
             </Card>
 
