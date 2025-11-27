@@ -45,8 +45,8 @@ type SaleHistory = {
 };
 
 const PAYMENT_STATUS_OPTIONS = [
-  { value: 'pending', label: 'Pending' },
   { value: 'waiting', label: 'Waiting' },
+  { value: 'pending', label: 'Pending' },
   { value: 'received', label: 'Received' },
 ];
 
@@ -88,7 +88,7 @@ export default function EterraExpensesPage() {
     saleType: 'Privat',
     customSaleType: '',
     shippingCost: '',
-    paymentStatus: 'pending',
+    paymentStatus: 'waiting',
     notes: '',
   });
 
@@ -103,6 +103,7 @@ export default function EterraExpensesPage() {
   const [saleSearch, setSaleSearch] = useState('');
   const [purchaseSearch, setPurchaseSearch] = useState('');
   const [confirmSaleId, setConfirmSaleId] = useState<string | null>(null);
+  const [visibleSalesCount, setVisibleSalesCount] = useState(5);
 
   useEffect(() => {
     const fetchData = async () => {
@@ -198,6 +199,11 @@ export default function EterraExpensesPage() {
 
     void fetchData();
   }, [user, navigate]);
+
+  useEffect(() => {
+    // Reset visible count when filter/search changes
+    setVisibleSalesCount(5);
+  }, [saleStatusFilter, saleSearch]);
 
   const summary = useMemo(() => {
     const nowParts = getTiranaDateParts();
@@ -313,7 +319,7 @@ export default function EterraExpensesPage() {
   }, [sales, saleStatusFilter, saleSearch]);
 
   const isDefaultSalesView = saleStatusFilter === 'all' && !saleSearch.trim();
-  const visibleSales = isDefaultSalesView ? filteredSales.slice(0, 5) : filteredSales;
+  const visibleSales = isDefaultSalesView ? filteredSales.slice(0, visibleSalesCount) : filteredSales;
 
   const filteredPurchases = useMemo(() => {
     const query = purchaseSearch.toLowerCase();
@@ -533,7 +539,7 @@ export default function EterraExpensesPage() {
         saleType: 'Privat',
         customSaleType: '',
         shippingCost: '',
-        paymentStatus: 'pending',
+        paymentStatus: 'waiting',
         notes: '',
       });
     } catch (err) {
@@ -896,11 +902,11 @@ export default function EterraExpensesPage() {
               <CardDescription>Newest entries first. Includes pending receivables.</CardDescription>
             </CardHeader>
             <CardContent className="space-y-3">
-              <div className="grid gap-3 md:grid-cols-2">
-                <div>
-                  <Label htmlFor="sale-status-filter" className="text-sm text-[hsl(var(--muted-foreground))]">
-                    Sales status
-                  </Label>
+                <div className="grid gap-3 md:grid-cols-2">
+                  <div>
+                    <Label htmlFor="sale-status-filter" className="text-sm text-[hsl(var(--muted-foreground))]">
+                      Sales status
+                    </Label>
                   <select
                     id="sale-status-filter"
                     className="mt-1 w-full rounded-md border border-[hsl(var(--border))] bg-transparent px-3 py-2 text-sm"
@@ -908,8 +914,8 @@ export default function EterraExpensesPage() {
                     onChange={(e) => setSaleStatusFilter(e.target.value as 'all' | 'pending' | 'waiting' | 'received')}
                   >
                     <option value="all">All</option>
-                    <option value="pending">Pending</option>
                     <option value="waiting">Waiting</option>
+                    <option value="pending">Pending</option>
                     <option value="received">Received</option>
                   </select>
                 </div>
@@ -1074,6 +1080,16 @@ export default function EterraExpensesPage() {
                     )}
                   </article>
                 ))
+              )}
+              {isDefaultSalesView && filteredSales.length > visibleSalesCount && (
+                <div className="flex justify-center">
+                  <Button
+                    variant="outline"
+                    onClick={() => setVisibleSalesCount((count) => count + 10)}
+                  >
+                    View more ({Math.min(visibleSalesCount + 10, filteredSales.length)} of {filteredSales.length})
+                  </Button>
+                </div>
               )}
             </CardContent>
           </Card>
