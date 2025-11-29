@@ -8,6 +8,8 @@ import { Label } from '@/components/ui/label';
 import { assertNoDataErrors, dataClient, ensureAuthSession } from '@/lib/api-client';
 import { formatTiranaDateTime, getTiranaDateParts, getTiranaNowDateTimeLocal, toISOInTirana } from '@/lib/timezone';
 
+type ProcessStatus = 'to_be_printed' | 'for_shipping' | 'delivering' | 'completed';
+
 type Sale = {
   id: string;
   description: string;
@@ -15,7 +17,7 @@ type Sale = {
   amount: number;
   shippingCost?: number;
   netAfterShipping: number;
-  paymentStatus: string; // 'pending' | 'waiting' | 'received'
+  paymentStatus: ProcessStatus;
   recordedById: string;
   recordedByName: string;
   notes?: string;
@@ -44,10 +46,11 @@ type SaleHistory = {
   timestamp: string;
 };
 
-const PAYMENT_STATUS_OPTIONS = [
-  { value: 'waiting', label: 'Waiting' },
-  { value: 'pending', label: 'Pending' },
-  { value: 'received', label: 'Received' },
+const PROCESS_STATUS_OPTIONS: { value: ProcessStatus; label: string }[] = [
+  { value: 'to_be_printed', label: 'To be printed' },
+  { value: 'for_shipping', label: 'For shipping' },
+  { value: 'delivering', label: 'Delivering' },
+  { value: 'completed', label: 'Completed' },
 ];
 
 const currencyFormatter = new Intl.NumberFormat('en-US', {
@@ -59,6 +62,18 @@ const currencyFormatter = new Intl.NumberFormat('en-US', {
 const formatCurrency = (value: number) => currencyFormatter.format(value);
 const formatDate = (value: string) => formatTiranaDateTime(value);
 const getInitialDateInput = () => getTiranaNowDateTimeLocal();
+const formatProcessStatus = (status: ProcessStatus) =>
+  PROCESS_STATUS_OPTIONS.find((s) => s.value === status)?.label ?? status;
+
+const mapLegacyStatus = (status: string | null | undefined): ProcessStatus => {
+  if (status === 'pending') return 'delivering';
+  if (status === 'waiting') return 'for_shipping';
+  if (status === 'received') return 'completed';
+  if (status === 'to_be_printed' || status === 'for_shipping' || status === 'delivering' || status === 'completed') {
+    return status;
+  }
+  return 'to_be_printed';
+};
 
 export default function EterraExpensesPage() {
   const { user } = useAuth();
@@ -75,7 +90,7 @@ export default function EterraExpensesPage() {
     amount: '',
     saleType: 'Privat',
     shippingCost: '',
-    paymentStatus: 'pending',
+    paymentStatus: 'to_be_printed' as ProcessStatus,
     notes: '',
   });
   const [loading, setLoading] = useState(true);
@@ -88,7 +103,7 @@ export default function EterraExpensesPage() {
     saleType: 'Privat',
     customSaleType: '',
     shippingCost: '',
-    paymentStatus: 'waiting',
+    paymentStatus: 'to_be_printed' as ProcessStatus,
     notes: '',
   });
 
@@ -99,7 +114,7 @@ export default function EterraExpensesPage() {
     notes: '',
   });
 
-  const [saleStatusFilter, setSaleStatusFilter] = useState<'all' | 'pending' | 'waiting' | 'received'>('all');
+  const [saleStatusFilter, setSaleStatusFilter] = useState<'all' | ProcessStatus>('all');
   const [saleSearch, setSaleSearch] = useState('');
   const [purchaseSearch, setPurchaseSearch] = useState('');
   const [confirmSaleId, setConfirmSaleId] = useState<string | null>(null);
@@ -141,7 +156,7 @@ export default function EterraExpensesPage() {
               amount: item.amount,
               shippingCost: item.shippingCost ?? 0,
               netAfterShipping: item.netAfterShipping,
-              paymentStatus: item.paymentStatus ?? 'pending',
+              paymentStatus: mapLegacyStatus(item.paymentStatus),
               recordedById: item.recordedById,
               recordedByName: item.recordedByName,
               notes: item.notes ?? undefined,
@@ -217,13 +232,13 @@ export default function EterraExpensesPage() {
 
     const monthlyRevenue = monthlySales.reduce((sum, sale) => sum + sale.netAfterShipping, 0);
     const pendingReceivables = monthlySales
-      .filter((sale) => sale.paymentStatus === 'pending' || sale.paymentStatus === 'waiting')
+      .filter((sale) => sale.paymentStatus !== 'completed')
       .reduce((sum, sale) => sum + sale.netAfterShipping, 0);
     const monthlySpend = monthlyPurchases.reduce((sum, purchase) => sum + purchase.amount, 0);
     const shippingCostsMonth = monthlySales.reduce((sum, sale) => sum + (sale.shippingCost ?? 0), 0);
 
     const totalReceived = sales
-      .filter((sale) => sale.paymentStatus === 'received')
+      .filter((sale) => sale.paymentStatus === 'completed')
       .reduce((sum, sale) => sum + sale.netAfterShipping, 0);
     const totalPurchases = purchases.reduce((sum, purchase) => sum + purchase.amount, 0);
     const cashBox = totalReceived - totalPurchases;
@@ -239,7 +254,10 @@ export default function EterraExpensesPage() {
     const orderedMonthlySales = [...monthlySales].sort((a, b) => new Date(a.timestamp).getTime() - new Date(b.timestamp).getTime());
     const orderedMonthlyPurchases = [...monthlyPurchases].sort((a, b) => new Date(a.timestamp).getTime() - new Date(b.timestamp).getTime());
     const revenueTrend = orderedMonthlySales.slice(-10).map((sale) => sale.netAfterShipping);
-    const pendingTrend = orderedMonthlySales.filter((sale) => sale.paymentStatus === 'pending').slice(-10).map((sale) => sale.netAfterShipping);
+    const pendingTrend = orderedMonthlySales
+      .filter((sale) => sale.paymentStatus !== 'completed')
+      .slice(-10)
+      .map((sale) => sale.netAfterShipping);
     const cashBoxTrend: number[] = [];
     let runningCash = 0;
     const combined = [
@@ -264,11 +282,11 @@ export default function EterraExpensesPage() {
     };
   }, [sales, purchases]);
 
-  const handleMarkReceived = async (saleId: string) => {
-    await handleUpdateStatus(saleId, 'received');
+  const handleMarkCompleted = async (saleId: string) => {
+    await handleUpdateStatus(saleId, 'completed');
   };
 
-  const handleUpdateStatus = async (saleId: string, nextStatus: 'waiting' | 'pending' | 'received') => {
+  const handleUpdateStatus = async (saleId: string, nextStatus: ProcessStatus) => {
     try {
       const models = dataClient.models as Record<string, any>;
       const saleModel = models['EterraSale'];
@@ -291,7 +309,7 @@ export default function EterraExpensesPage() {
         if (saleBefore.paymentStatus !== nextStatus) {
           await recordHistoryEntries(saleId, [
             {
-              field: 'paymentStatus',
+              field: 'processStatus',
               oldValue: saleBefore.paymentStatus,
               newValue: nextStatus,
               changeType: 'status',
@@ -304,7 +322,7 @@ export default function EterraExpensesPage() {
       }
     } catch (err) {
       console.error('Failed to update status', err);
-      setError('Could not update payment status. Please try again.');
+      setError('Could not update process status. Please try again.');
     } finally {
       setConfirmSaleId(null);
     }
@@ -338,6 +356,8 @@ export default function EterraExpensesPage() {
     });
   }, [purchases, purchaseSearch]);
 
+  const toBePrinted = useMemo(() => sales.filter((sale) => sale.paymentStatus === 'to_be_printed'), [sales]);
+
   const handleStartEditSale = (sale: Sale) => {
     setEditingSaleId(sale.id);
     setEditingSaleForm({
@@ -345,7 +365,7 @@ export default function EterraExpensesPage() {
       amount: sale.amount.toString(),
       saleType: sale.saleType,
       shippingCost: (sale.shippingCost ?? 0).toString(),
-      paymentStatus: sale.paymentStatus || 'pending',
+      paymentStatus: mapLegacyStatus(sale.paymentStatus),
       notes: sale.notes ?? '',
     });
   };
@@ -470,7 +490,7 @@ export default function EterraExpensesPage() {
         pushChange('shippingCost', original.shippingCost ?? 0, result.data.shippingCost ?? 0);
         pushChange('netAfterShipping', original.netAfterShipping, result.data.netAfterShipping);
         pushChange('notes', original.notes ?? '', result.data.notes ?? '');
-        pushChange('paymentStatus', original.paymentStatus, result.data.paymentStatus, 'status');
+        pushChange('processStatus', original.paymentStatus, result.data.paymentStatus, 'status');
 
         if (changes.length) {
           await recordHistoryEntries(editingSaleId, changes);
@@ -545,7 +565,7 @@ export default function EterraExpensesPage() {
         saleType: 'Privat',
         customSaleType: '',
         shippingCost: '',
-        paymentStatus: 'waiting',
+        paymentStatus: 'to_be_printed',
         notes: '',
       });
     } catch (err) {
@@ -644,9 +664,9 @@ export default function EterraExpensesPage() {
             trendData={summary.revenueTrend}
           />
           <MetricCard
-            title="Pending receivables"
+            title="Open receivables"
             value={formatCurrency(summary.pendingReceivables)}
-            subtitle="Waiting to be collected"
+            subtitle="Not completed yet"
             trendData={summary.pendingTrend}
           />
           <MetricCard
@@ -665,7 +685,7 @@ export default function EterraExpensesPage() {
           <Card className="shadow-lg">
             <CardHeader>
               <CardTitle>Log sale or receivable</CardTitle>
-              <CardDescription>Capture every sale, shipping cost, and payment status.</CardDescription>
+              <CardDescription>Capture every sale, shipping cost, and process status.</CardDescription>
             </CardHeader>
             <CardContent>
               {error && (
@@ -725,14 +745,19 @@ export default function EterraExpensesPage() {
                 </div>
                 <div className="grid gap-4 sm:grid-cols-1">
                   <div className="space-y-2">
-                    <Label htmlFor="payment-status">Payment status</Label>
+                    <Label htmlFor="payment-status">Process status</Label>
                     <select
                       id="payment-status"
                       className="w-full rounded-md border border-[hsl(var(--border))] bg-transparent px-3 py-2"
                       value={saleForm.paymentStatus}
-                      onChange={(event) => setSaleForm((current) => ({ ...current, paymentStatus: event.target.value }))}
+                      onChange={(event) =>
+                        setSaleForm((current) => ({
+                          ...current,
+                          paymentStatus: event.target.value as ProcessStatus,
+                        }))
+                      }
                     >
-                      {PAYMENT_STATUS_OPTIONS.map((option) => (
+                      {PROCESS_STATUS_OPTIONS.map((option) => (
                         <option key={option.value} value={option.value}>
                           {option.label}
                         </option>
@@ -841,30 +866,40 @@ export default function EterraExpensesPage() {
 
             <Card className="border-dashed">
               <CardHeader>
-                <CardTitle>Operational checklist</CardTitle>
-                <CardDescription>Quick reminders based on this month's activity.</CardDescription>
+                <CardTitle>To be printed</CardTitle>
+                <CardDescription>Jobs queued for printing.</CardDescription>
               </CardHeader>
               <CardContent>
-                <ul className="space-y-2 text-sm text-[hsl(var(--muted-foreground))]">
-                  {summary.pendingReceivables > 0 && (
-                    <li className="flex items-start gap-2">
-                      <span className="mt-1 h-2 w-2 rounded-full bg-[hsl(var(--primary))]" />
-                      <span>Follow up on pending invoices to turn them into cash.</span>
-                    </li>
-                  )}
-                  {summary.shippingCostsMonth > summary.monthlyRevenue * 0.2 && (
-                    <li className="flex items-start gap-2">
-                      <span className="mt-1 h-2 w-2 rounded-full bg-[hsl(var(--primary))]" />
-                      <span>Shipping is consuming more than 20% of net revenue this month. Double-check carrier rates.</span>
-                    </li>
-                  )}
-                  {!summary.pendingReceivables && summary.shippingCostsMonth <= summary.monthlyRevenue * 0.2 && (
-                    <li className="flex items-start gap-2">
-                      <span className="mt-1 h-2 w-2 rounded-full bg-[hsl(var(--primary))]" />
-                      <span>Everything is on track. Keep logging sales and purchases for accurate reporting.</span>
-                    </li>
-                  )}
-                </ul>
+                {loading ? (
+                  <p className="text-sm text-[hsl(var(--muted-foreground))]">Loading...</p>
+                ) : toBePrinted.length === 0 ? (
+                  <p className="text-sm text-[hsl(var(--muted-foreground))]">Nothing waiting to be printed.</p>
+                ) : (
+                  <div className="overflow-x-auto">
+                    <table className="w-full text-sm">
+                      <thead>
+                        <tr className="text-left text-[hsl(var(--muted-foreground))]">
+                          <th className="pb-2">Description</th>
+                          <th className="pb-2">Sale type</th>
+                          <th className="pb-2">Net</th>
+                          <th className="pb-2">Logged by</th>
+                          <th className="pb-2">When</th>
+                        </tr>
+                      </thead>
+                      <tbody className="divide-y divide-[hsl(var(--border))]">
+                        {toBePrinted.slice(0, 8).map((sale) => (
+                          <tr key={sale.id}>
+                            <td className="py-2 font-medium text-[hsl(var(--foreground))]">{sale.description}</td>
+                            <td className="py-2">{sale.saleType}</td>
+                            <td className="py-2">{formatCurrency(sale.netAfterShipping)}</td>
+                            <td className="py-2">{sale.recordedByName}</td>
+                            <td className="py-2 text-[hsl(var(--muted-foreground))]">{formatDate(sale.timestamp)}</td>
+                          </tr>
+                        ))}
+                      </tbody>
+                    </table>
+                  </div>
+                )}
               </CardContent>
             </Card>
           </div>
@@ -906,7 +941,7 @@ export default function EterraExpensesPage() {
           <Card className="shadow-sm">
             <CardHeader>
               <CardTitle>Recent sales</CardTitle>
-              <CardDescription>Newest entries first. Includes pending receivables.</CardDescription>
+              <CardDescription>Newest entries first. Includes in-progress items.</CardDescription>
             </CardHeader>
             <CardContent className="space-y-3">
                 <div className="grid gap-3 md:grid-cols-2">
@@ -918,12 +953,13 @@ export default function EterraExpensesPage() {
                     id="sale-status-filter"
                     className="mt-1 w-full rounded-md border border-[hsl(var(--border))] bg-transparent px-3 py-2 text-sm"
                     value={saleStatusFilter}
-                    onChange={(e) => setSaleStatusFilter(e.target.value as 'all' | 'pending' | 'waiting' | 'received')}
+                    onChange={(e) => setSaleStatusFilter(e.target.value as 'all' | ProcessStatus)}
                   >
                     <option value="all">All</option>
-                    <option value="waiting">Waiting</option>
-                    <option value="pending">Pending</option>
-                    <option value="received">Received</option>
+                    <option value="to_be_printed">To be printed</option>
+                    <option value="for_shipping">For shipping</option>
+                    <option value="delivering">Delivering</option>
+                    <option value="completed">Completed</option>
                   </select>
                 </div>
                 <div>
@@ -955,33 +991,45 @@ export default function EterraExpensesPage() {
                       <div className="flex items-center gap-2">
                         <span
                           className={`text-xs uppercase tracking-[0.2em] ${
-                            sale.paymentStatus === 'received'
+                            sale.paymentStatus === 'completed'
                               ? 'text-emerald-600'
-                              : sale.paymentStatus === 'waiting'
+                              : sale.paymentStatus === 'delivering'
+                              ? 'text-sky-600'
+                              : sale.paymentStatus === 'for_shipping'
                               ? 'text-amber-600'
-                              : 'text-[hsl(var(--destructive))]'
+                              : 'text-[hsl(var(--primary))]'
                           }`}
                         >
-                          {sale.paymentStatus}
+                          {formatProcessStatus(sale.paymentStatus)}
                         </span>
-                        {sale.paymentStatus === 'waiting' && (
+                        {sale.paymentStatus === 'to_be_printed' && (
                           <Button
                             variant="outline"
                             size="sm"
                             className="px-2"
-                            onClick={() => handleUpdateStatus(sale.id, 'pending')}
+                            onClick={() => handleUpdateStatus(sale.id, 'for_shipping')}
                           >
-                            Mark pending
+                            Mark for shipping
                           </Button>
                         )}
-                        {sale.paymentStatus === 'pending' && (
+                        {sale.paymentStatus === 'for_shipping' && (
+                          <Button
+                            variant="outline"
+                            size="sm"
+                            className="px-2"
+                            onClick={() => handleUpdateStatus(sale.id, 'delivering')}
+                          >
+                            Mark delivering
+                          </Button>
+                        )}
+                        {sale.paymentStatus === 'delivering' && (
                           <Button
                             variant="outline"
                             size="sm"
                             className="px-2"
                             onClick={() => setConfirmSaleId(sale.id)}
                           >
-                            Mark received
+                            Mark completed
                           </Button>
                         )}
                         <Button variant="ghost" size="sm" className="px-2" onClick={() => handleStartEditSale(sale)}>
@@ -1003,19 +1051,22 @@ export default function EterraExpensesPage() {
                             />
                           </div>
                           <div className="space-y-1">
-                            <Label htmlFor={`edit-sale-type-${sale.id}`}>Sale type</Label>
-                          <select
-                            id={`edit-sale-type-${sale.id}`}
-                            className="w-full rounded-md border border-[hsl(var(--border))] bg-transparent px-3 py-2"
-                            value={editingSaleForm.saleType}
-                            onChange={(e) => setEditingSaleForm((prev) => ({ ...prev, saleType: e.target.value }))}
-                          >
-                            <option value="Privat">Privat (in-person)</option>
-                            <option value="GjirafaMall">GjirafaMall</option>
-                            <option value="Posta cheetah">Posta cheetah</option>
-                            <option value="other">Other channel</option>
-                          </select>
-                        </div>
+                            <Label htmlFor={`edit-status-${sale.id}`}>Process status</Label>
+                            <select
+                              id={`edit-status-${sale.id}`}
+                              className="w-full rounded-md border border-[hsl(var(--border))] bg-transparent px-3 py-2"
+                              value={editingSaleForm.paymentStatus}
+                              onChange={(e) =>
+                                setEditingSaleForm((prev) => ({ ...prev, paymentStatus: e.target.value as ProcessStatus }))
+                              }
+                            >
+                              {PROCESS_STATUS_OPTIONS.map((option) => (
+                                <option key={option.value} value={option.value}>
+                                  {option.label}
+                                </option>
+                              ))}
+                            </select>
+                          </div>
                         </div>
                         <div className="grid gap-3 md:grid-cols-3">
                           <div className="space-y-1">
@@ -1042,18 +1093,17 @@ export default function EterraExpensesPage() {
                             />
                           </div>
                           <div className="space-y-1">
-                            <Label htmlFor={`edit-status-${sale.id}`}>Status</Label>
+                            <Label htmlFor={`edit-sale-type-${sale.id}`}>Sale type</Label>
                             <select
-                              id={`edit-status-${sale.id}`}
+                              id={`edit-sale-type-${sale.id}`}
                               className="w-full rounded-md border border-[hsl(var(--border))] bg-transparent px-3 py-2"
-                              value={editingSaleForm.paymentStatus}
-                              onChange={(e) => setEditingSaleForm((prev) => ({ ...prev, paymentStatus: e.target.value }))}
+                              value={editingSaleForm.saleType}
+                              onChange={(e) => setEditingSaleForm((prev) => ({ ...prev, saleType: e.target.value }))}
                             >
-                              {PAYMENT_STATUS_OPTIONS.map((option) => (
-                                <option key={option.value} value={option.value}>
-                                  {option.label}
-                                </option>
-                              ))}
+                              <option value="Privat">Privat (in-person)</option>
+                              <option value="GjirafaMall">GjirafaMall</option>
+                              <option value="Posta cheetah">Posta cheetah</option>
+                              <option value="other">Other channel</option>
                             </select>
                           </div>
                         </div>
@@ -1160,16 +1210,16 @@ export default function EterraExpensesPage() {
       {confirmSaleId && (
         <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/50 px-4">
           <div className="w-full max-w-sm rounded-xl border border-[hsl(var(--border))] bg-[hsl(var(--card))] p-5 shadow-xl">
-            <h3 className="text-lg font-semibold text-[hsl(var(--foreground))]">Mark as received?</h3>
+            <h3 className="text-lg font-semibold text-[hsl(var(--foreground))]">Mark as completed?</h3>
             <p className="mt-2 text-sm text-[hsl(var(--muted-foreground))]">
-              Confirm you received payment for this sale. This will switch the status from Pending to Received.
+              Confirm this sale is completed. This will switch the status to Completed.
             </p>
             <div className="mt-4 flex flex-wrap gap-2 justify-end">
               <Button variant="outline" onClick={() => setConfirmSaleId(null)}>
                 Cancel
               </Button>
-              <Button onClick={() => confirmSaleId && handleMarkReceived(confirmSaleId)}>
-                Mark received
+              <Button onClick={() => confirmSaleId && handleMarkCompleted(confirmSaleId)}>
+                Mark completed
               </Button>
             </div>
           </div>
