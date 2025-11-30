@@ -905,8 +905,8 @@ export default function EterraExpensesPage() {
           </div>
         </section>
 
-        <section className="grid gap-6 lg:grid-cols-2">
-          <Card className="shadow-sm">
+        <section className="grid w-full gap-6 lg:grid-cols-2">
+          <Card className="shadow-sm w-full">
             <CardHeader>
               <CardTitle>Largest recorded sale</CardTitle>
               <CardDescription>Useful for understanding dependency on big clients.</CardDescription>
@@ -938,7 +938,7 @@ export default function EterraExpensesPage() {
         </section>
 
         <section className="grid gap-6 lg:grid-cols-1">
-          <Card className="shadow-sm">
+          <Card className="shadow-sm w-full">
             <CardHeader>
               <CardTitle>Recent sales</CardTitle>
               <CardDescription>Newest entries first. Includes in-progress items.</CardDescription>
