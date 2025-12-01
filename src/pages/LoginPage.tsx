@@ -9,9 +9,12 @@ import { Card, CardContent, CardDescription, CardFooter, CardHeader, CardTitle }
 export default function LoginPage() {
   const [email, setEmail] = useState('');
   const [password, setPassword] = useState('');
+  const [newPassword, setNewPassword] = useState('');
+  const [confirmNewPassword, setConfirmNewPassword] = useState('');
+  const [newPasswordRequired, setNewPasswordRequired] = useState(false);
   const [error, setError] = useState('');
   const [loading, setLoading] = useState(false);
-  const { signIn, configError } = useAuth();
+  const { signIn, completeNewPassword, configError } = useAuth();
   const navigate = useNavigate();
 
   const handleSubmit = async (e: React.FormEvent) => {
@@ -20,11 +23,27 @@ export default function LoginPage() {
     setLoading(true);
 
     try {
-      const result = await signIn(email, password);
-      if (result.success) {
-        navigate('/dashboard');
+      if (newPasswordRequired) {
+        if (!newPassword || newPassword !== confirmNewPassword) {
+          setError('New passwords must match.');
+          return;
+        }
+        const result = await completeNewPassword(newPassword);
+        if (result.success) {
+          navigate('/dashboard');
+        } else {
+          setError(result.error || 'Could not set new password');
+        }
       } else {
-        setError(result.error || 'Login failed');
+        const result = await signIn(email, password);
+        if (result.success) {
+          navigate('/dashboard');
+        } else if (result.nextStep === 'NEW_PASSWORD_REQUIRED') {
+          setNewPasswordRequired(true);
+          setError('Set your new password to finish signing in.');
+        } else {
+          setError(result.error || 'Login failed');
+        }
       }
     } catch (err) {
       setError('An unexpected error occurred');
@@ -62,25 +81,54 @@ export default function LoginPage() {
                 value={email}
                 onChange={(e) => setEmail(e.target.value)}
                 required
+                disabled={newPasswordRequired}
               />
             </div>
 
             <div className="space-y-2">
-              <Label htmlFor="password">Password</Label>
+              <Label htmlFor="password">{newPasswordRequired ? 'Temporary password' : 'Password'}</Label>
               <Input
                 id="password"
                 type="password"
-                placeholder="Enter your password"
+                placeholder={newPasswordRequired ? 'Enter the one-time password' : 'Enter your password'}
                 value={password}
                 onChange={(e) => setPassword(e.target.value)}
                 required
+                disabled={newPasswordRequired}
               />
             </div>
+
+            {newPasswordRequired && (
+              <>
+                <div className="space-y-2">
+                  <Label htmlFor="new-password">New password</Label>
+                  <Input
+                    id="new-password"
+                    type="password"
+                    placeholder="Create a new password"
+                    value={newPassword}
+                    onChange={(e) => setNewPassword(e.target.value)}
+                    required
+                  />
+                </div>
+                <div className="space-y-2">
+                  <Label htmlFor="confirm-new-password">Confirm new password</Label>
+                  <Input
+                    id="confirm-new-password"
+                    type="password"
+                    placeholder="Confirm new password"
+                    value={confirmNewPassword}
+                    onChange={(e) => setConfirmNewPassword(e.target.value)}
+                    required
+                  />
+                </div>
+              </>
+            )}
           </CardContent>
 
           <CardFooter className="flex flex-col space-y-4">
             <Button type="submit" className="w-full" disabled={loading}>
-              {loading ? 'Signing in...' : 'Sign In'}
+              {loading ? 'Signing in...' : newPasswordRequired ? 'Set new password' : 'Sign In'}
             </Button>
 
             <div className="text-sm text-center text-[hsl(var(--muted-foreground))]">

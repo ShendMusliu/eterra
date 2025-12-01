@@ -221,21 +221,58 @@ export default function EterraExpensesPage() {
   }, [saleStatusFilter, saleSearch]);
 
   const summary = useMemo(() => {
-    const nowParts = getTiranaDateParts();
-    const isCurrentMonth = (timestamp: string) => {
-      const date = getTiranaDateParts(timestamp);
-      return date.month === nowParts.month && date.year === nowParts.year;
-    };
+    const now = new Date();
+    const dayStart = new Date(now);
+    dayStart.setHours(0, 0, 0, 0);
+    const DAYS = 14;
+    const dayBuckets = Array.from({ length: DAYS }, (_, idx) => {
+      const start = new Date(dayStart.getTime() - (DAYS - 1 - idx) * 24 * 60 * 60 * 1000);
+      const end = new Date(start.getTime() + 24 * 60 * 60 * 1000);
+      return { start, end };
+    });
 
-    const monthlySales = sales.filter((sale) => isCurrentMonth(sale.timestamp));
-    const monthlyPurchases = purchases.filter((purchase) => isCurrentMonth(purchase.timestamp));
+    const revenueTrend = dayBuckets.map((bucket) =>
+      sales.reduce((sum, sale) => {
+        const ts = new Date(sale.timestamp).getTime();
+        if (ts >= bucket.start.getTime() && ts < bucket.end.getTime()) {
+          return sum + sale.netAfterShipping;
+        }
+        return sum;
+      }, 0)
+    );
+
+    const pendingTrend = dayBuckets.map((bucket) =>
+      sales.reduce((sum, sale) => {
+        const ts = new Date(sale.timestamp).getTime();
+        if (ts < bucket.end.getTime() && sale.paymentStatus !== 'completed') {
+          return sum + sale.netAfterShipping;
+        }
+        return sum;
+      }, 0)
+    );
+
+    const cashBoxTrend: number[] = [];
+    dayBuckets.forEach((bucket) => {
+      const received = sales
+        .filter((sale) => sale.paymentStatus === 'completed' && new Date(sale.timestamp).getTime() <= bucket.end.getTime())
+        .reduce((sum, sale) => sum + sale.netAfterShipping, 0);
+      const spent = purchases
+        .filter((purchase) => new Date(purchase.timestamp).getTime() <= bucket.end.getTime())
+        .reduce((sum, purchase) => sum + purchase.amount, 0);
+      cashBoxTrend.push(received - spent);
+    });
+
+    const monthlySales = sales.filter((sale) => {
+      const date = getTiranaDateParts(sale.timestamp);
+      const nowParts = getTiranaDateParts();
+      return date.month === nowParts.month && date.year === nowParts.year;
+    });
 
     const monthlyRevenue = monthlySales.reduce((sum, sale) => sum + sale.netAfterShipping, 0);
     const pendingReceivables = sales
       .filter((sale) => sale.paymentStatus !== 'completed')
       .reduce((sum, sale) => sum + sale.netAfterShipping, 0);
-    const monthlySpend = monthlyPurchases.reduce((sum, purchase) => sum + purchase.amount, 0);
-    const shippingCostsMonth = monthlySales.reduce((sum, sale) => sum + (sale.shippingCost ?? 0), 0);
+    const monthlySpend = monthlySales.reduce((sum, sale) => sum + (sale.shippingCost ?? 0), 0);
 
     const totalReceived = sales
       .filter((sale) => sale.paymentStatus === 'completed')
@@ -250,31 +287,11 @@ export default function EterraExpensesPage() {
       return current;
     }, null);
 
-    // Build tiny trend arrays for sparklines
-    const orderedMonthlySales = [...monthlySales].sort((a, b) => new Date(a.timestamp).getTime() - new Date(b.timestamp).getTime());
-    const orderedMonthlyPurchases = [...monthlyPurchases].sort((a, b) => new Date(a.timestamp).getTime() - new Date(b.timestamp).getTime());
-    const revenueTrend = orderedMonthlySales.slice(-10).map((sale) => sale.netAfterShipping);
-    const orderedAllSales = [...sales].sort((a, b) => new Date(a.timestamp).getTime() - new Date(b.timestamp).getTime());
-    const pendingTrend = orderedAllSales
-      .filter((sale) => sale.paymentStatus !== 'completed')
-      .slice(-10)
-      .map((sale) => sale.netAfterShipping);
-    const cashBoxTrend: number[] = [];
-    let runningCash = 0;
-    const combined = [
-      ...orderedMonthlySales.map((sale) => ({ ts: sale.timestamp, delta: sale.netAfterShipping })),
-      ...orderedMonthlyPurchases.map((purchase) => ({ ts: purchase.timestamp, delta: -purchase.amount })),
-    ].sort((a, b) => new Date(a.ts).getTime() - new Date(b.ts).getTime());
-    combined.forEach((entry) => {
-      runningCash += entry.delta;
-      cashBoxTrend.push(runningCash);
-    });
-
     return {
       monthlyRevenue,
       pendingReceivables,
       monthlySpend,
-      shippingCostsMonth,
+      shippingCostsMonth: monthlySpend,
       cashBox,
       bestSale,
       revenueTrend,
@@ -508,7 +525,7 @@ export default function EterraExpensesPage() {
   const handleAddSale = async (event: React.FormEvent) => {
     event.preventDefault();
     const amountValue = parseFloat(saleForm.amount);
-    if (!amountValue || amountValue <= 0) return;
+    if (Number.isNaN(amountValue) || amountValue < 0) return;
     const shippingValue = parseFloat(saleForm.shippingCost) || 0;
     const saleType =
       saleForm.saleType === 'other'

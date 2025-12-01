@@ -8,6 +8,7 @@ import {
   signIn as amplifySignIn,
   signOut as amplifySignOut,
   signUp as amplifySignUp,
+  confirmSignIn as amplifyConfirmSignIn,
   type AuthUser,
   type SignInOutput,
 } from 'aws-amplify/auth';
@@ -32,6 +33,7 @@ interface AuthContextType {
   signIn: (email: string, password: string) => Promise<AuthActionResult>;
   signUp: (email: string, password: string, name: string) => Promise<AuthActionResult>;
   confirmSignUp: (email: string, code: string) => Promise<AuthActionResult>;
+  completeNewPassword: (newPassword: string) => Promise<AuthActionResult>;
   signOut: () => Promise<void>;
   isAuthenticated: boolean;
 }
@@ -161,12 +163,33 @@ export const AuthProvider = ({ children }: { children: ReactNode }) => {
       }
 
       const nextStep = result.nextStep?.signInStep;
+      if (nextStep === 'CONFIRM_SIGN_IN_WITH_NEW_PASSWORD_REQUIRED') {
+        return {
+          success: false,
+          nextStep: 'NEW_PASSWORD_REQUIRED',
+        };
+      }
       return {
         success: false,
         error: nextStep ? `Additional verification required: ${nextStep}` : 'Unable to sign in.',
       };
     } catch (error) {
       const message = error instanceof Error ? error.message : 'Unable to sign in.';
+      return { success: false, error: message };
+    }
+  };
+
+  const completeNewPassword = async (newPassword: string): Promise<AuthActionResult> => {
+    try {
+      const result = await amplifyConfirmSignIn({ challengeResponse: newPassword });
+      if (result.isSignedIn) {
+        const profile = await buildUserFromAmplify();
+        setUser(profile);
+        return { success: true };
+      }
+      return { success: false, error: 'Unable to set new password.' };
+    } catch (error) {
+      const message = error instanceof Error ? error.message : 'Unable to set new password.';
       return { success: false, error: message };
     }
   };
@@ -234,6 +257,7 @@ export const AuthProvider = ({ children }: { children: ReactNode }) => {
         signIn,
         signUp,
         confirmSignUp,
+        completeNewPassword,
         signOut,
         isAuthenticated: !!user,
       }}
