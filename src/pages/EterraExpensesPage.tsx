@@ -231,7 +231,7 @@ export default function EterraExpensesPage() {
     const monthlyPurchases = purchases.filter((purchase) => isCurrentMonth(purchase.timestamp));
 
     const monthlyRevenue = monthlySales.reduce((sum, sale) => sum + sale.netAfterShipping, 0);
-    const pendingReceivables = monthlySales
+    const pendingReceivables = sales
       .filter((sale) => sale.paymentStatus !== 'completed')
       .reduce((sum, sale) => sum + sale.netAfterShipping, 0);
     const monthlySpend = monthlyPurchases.reduce((sum, purchase) => sum + purchase.amount, 0);
@@ -254,7 +254,8 @@ export default function EterraExpensesPage() {
     const orderedMonthlySales = [...monthlySales].sort((a, b) => new Date(a.timestamp).getTime() - new Date(b.timestamp).getTime());
     const orderedMonthlyPurchases = [...monthlyPurchases].sort((a, b) => new Date(a.timestamp).getTime() - new Date(b.timestamp).getTime());
     const revenueTrend = orderedMonthlySales.slice(-10).map((sale) => sale.netAfterShipping);
-    const pendingTrend = orderedMonthlySales
+    const orderedAllSales = [...sales].sort((a, b) => new Date(a.timestamp).getTime() - new Date(b.timestamp).getTime());
+    const pendingTrend = orderedAllSales
       .filter((sale) => sale.paymentStatus !== 'completed')
       .slice(-10)
       .map((sale) => sale.netAfterShipping);
