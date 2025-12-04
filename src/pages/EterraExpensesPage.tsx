@@ -119,6 +119,7 @@ export default function EterraExpensesPage() {
   const [purchaseSearch, setPurchaseSearch] = useState('');
   const [confirmSaleId, setConfirmSaleId] = useState<string | null>(null);
   const [visibleSalesCount, setVisibleSalesCount] = useState(5);
+  const [showMetricCards, setShowMetricCards] = useState(false);
 
   useEffect(() => {
     const fetchData = async () => {
@@ -262,17 +263,21 @@ export default function EterraExpensesPage() {
       cashBoxTrend.push(received - spent);
     });
 
-    const monthlySales = sales.filter((sale) => {
-      const date = getTiranaDateParts(sale.timestamp);
-      const nowParts = getTiranaDateParts();
+    const nowParts = getTiranaDateParts();
+    const isCurrentMonth = (timestamp: string) => {
+      const date = getTiranaDateParts(timestamp);
       return date.month === nowParts.month && date.year === nowParts.year;
-    });
+    };
+
+    const monthlySales = sales.filter((sale) => isCurrentMonth(sale.timestamp));
+    const monthlyPurchases = purchases.filter((purchase) => isCurrentMonth(purchase.timestamp));
 
     const monthlyRevenue = monthlySales.reduce((sum, sale) => sum + sale.netAfterShipping, 0);
     const pendingReceivables = sales
       .filter((sale) => sale.paymentStatus !== 'completed')
       .reduce((sum, sale) => sum + sale.netAfterShipping, 0);
-    const monthlySpend = monthlySales.reduce((sum, sale) => sum + (sale.shippingCost ?? 0), 0);
+    const monthlySpend = monthlyPurchases.reduce((sum, purchase) => sum + purchase.amount, 0);
+    const shippingCostsMonth = monthlySales.reduce((sum, sale) => sum + (sale.shippingCost ?? 0), 0);
 
     const totalReceived = sales
       .filter((sale) => sale.paymentStatus === 'completed')
@@ -291,7 +296,7 @@ export default function EterraExpensesPage() {
       monthlyRevenue,
       pendingReceivables,
       monthlySpend,
-      shippingCostsMonth: monthlySpend,
+      shippingCostsMonth,
       cashBox,
       bestSale,
       revenueTrend,
@@ -663,7 +668,10 @@ export default function EterraExpensesPage() {
                 <span className="font-semibold text-[hsl(var(--foreground))]">{displayName}</span>.
               </p>
             </div>
-            <div className="flex items-center justify-end gap-2">
+            <div className="flex w-full flex-wrap items-center justify-start gap-2 md:w-auto md:justify-end md:flex-nowrap">
+              <Button variant="outline" onClick={() => setShowMetricCards((current) => !current)}>
+                {showMetricCards ? 'Hide summary cards' : 'Show summary cards'}
+              </Button>
               <Button variant="outline" onClick={() => navigate(-1)}>
                 Back
               </Button>
@@ -674,30 +682,32 @@ export default function EterraExpensesPage() {
           </div>
         </header>
 
-        <section className="grid gap-4 md:grid-cols-1 lg:grid-cols-3">
-          <MetricCard
-            title="Revenue this month"
-            value={formatCurrency(summary.monthlyRevenue)}
-            subtitle={`${sales.length} logged sales`}
-            trendData={summary.revenueTrend}
-          />
-          <MetricCard
-            title="Open receivables"
-            value={formatCurrency(summary.pendingReceivables)}
-            subtitle="Not completed yet"
-            trendData={summary.pendingTrend}
-          />
-          <MetricCard
-            title="Cash box after spend"
-            value={formatCurrency(summary.cashBox)}
-            subtitle={
-              summary.monthlySpend
-                ? `${formatCurrency(summary.monthlySpend)} spent this month`
-                : 'No spend recorded this month'
-            }
-            trendData={summary.cashBoxTrend}
-          />
-        </section>
+        {showMetricCards && (
+          <section className="grid gap-4 md:grid-cols-1 lg:grid-cols-3">
+            <MetricCard
+              title="Revenue this month"
+              value={formatCurrency(summary.monthlyRevenue)}
+              subtitle={`${sales.length} logged sales`}
+              trendData={summary.revenueTrend}
+            />
+            <MetricCard
+              title="Open receivables"
+              value={formatCurrency(summary.pendingReceivables)}
+              subtitle="Not completed yet"
+              trendData={summary.pendingTrend}
+            />
+            <MetricCard
+              title="Cash box after spend"
+              value={formatCurrency(summary.cashBox)}
+              subtitle={
+                summary.monthlySpend
+                  ? `${formatCurrency(summary.monthlySpend)} spent this month`
+                  : 'No spend recorded this month'
+              }
+              trendData={summary.cashBoxTrend}
+            />
+          </section>
+        )}
 
         <section className="grid gap-6 lg:grid-cols-[1.1fr_0.9fr]">
           <Card className="shadow-lg">
@@ -894,7 +904,7 @@ export default function EterraExpensesPage() {
                   <p className="text-sm text-[hsl(var(--muted-foreground))]">Nothing waiting to be printed.</p>
                 ) : (
                   <div className="overflow-x-auto">
-                    <table className="w-full text-sm">
+                    <table className="min-w-[640px] w-full text-sm">
                       <thead>
                         <tr className="text-left text-[hsl(var(--muted-foreground))]">
                           <th className="pb-2">Description</th>
@@ -1004,9 +1014,9 @@ export default function EterraExpensesPage() {
               ) : (
                 visibleSales.map((sale) => (
                   <article key={sale.id} className="rounded-xl border border-[hsl(var(--border))] bg-[hsl(var(--card))]/70 p-3">
-                    <div className="flex items-center justify-between gap-2 text-sm">
-                      <span className="font-medium">{sale.description}</span>
-                      <div className="flex items-center gap-2">
+                    <div className="flex flex-col gap-2 text-sm sm:flex-row sm:items-center sm:justify-between">
+                      <span className="font-medium break-words">{sale.description}</span>
+                      <div className="flex flex-wrap items-center justify-start gap-2 sm:justify-end">
                         <span
                           className={`text-xs uppercase tracking-[0.2em] ${
                             sale.paymentStatus === 'completed'
@@ -1252,16 +1262,18 @@ function MetricCard({
   value,
   subtitle,
   trendData,
+  showGraph = true,
 }: {
   title: string;
   value: string;
   subtitle: string;
   trendData?: number[];
+  showGraph?: boolean;
 }) {
   const sparkPoints = trendData && trendData.length > 0 ? trendData : [0];
   const max = Math.max(...sparkPoints, 1);
-  const width = 140;
-  const height = 48;
+  const width = 320;
+  const height = 64;
   const step = sparkPoints.length > 1 ? width / (sparkPoints.length - 1) : width;
   const path = sparkPoints
     .map((point, index) => {
@@ -1277,22 +1289,32 @@ function MetricCard({
         <CardTitle className="text-sm font-medium text-[hsl(var(--muted-foreground))]">{title}</CardTitle>
         <p className="text-2xl font-semibold text-[hsl(var(--foreground))]">{value}</p>
         <CardDescription>{subtitle}</CardDescription>
-        <div className="mt-2 rounded-md bg-[hsl(var(--muted))]/50 p-2">
-          <svg width={width} height={height} role="presentation">
-            <path
-              d={`${path} L ${width} ${height} L 0 ${height} Z`}
-              fill="url(#spark-gradient)"
-              opacity="0.3"
-            />
-            <path d={path} stroke="hsl(var(--primary))" strokeWidth="2.2" fill="none" strokeLinecap="round" />
-            <defs>
-              <linearGradient id="spark-gradient" x1="0" x2="0" y1="0" y2="1">
-                <stop offset="0%" stopColor="hsl(var(--primary))" stopOpacity="0.4" />
-                <stop offset="100%" stopColor="hsl(var(--primary))" stopOpacity="0" />
-              </linearGradient>
-            </defs>
-          </svg>
-        </div>
+        {showGraph ? (
+          <div className="mt-2 rounded-md bg-[hsl(var(--muted))]/50 p-2">
+            <svg
+              role="presentation"
+              width="100%"
+              height={height}
+              viewBox={`0 0 ${width} ${height}`}
+              preserveAspectRatio="none"
+            >
+              <path
+                d={`${path} L ${width} ${height} L 0 ${height} Z`}
+                fill="url(#spark-gradient)"
+                opacity="0.3"
+              />
+              <path d={path} stroke="hsl(var(--primary))" strokeWidth="2.2" fill="none" strokeLinecap="round" />
+              <defs>
+                <linearGradient id="spark-gradient" x1="0" x2="0" y1="0" y2="1">
+                  <stop offset="0%" stopColor="hsl(var(--primary))" stopOpacity="0.4" />
+                  <stop offset="100%" stopColor="hsl(var(--primary))" stopOpacity="0" />
+                </linearGradient>
+              </defs>
+            </svg>
+          </div>
+        ) : (
+          <p className="mt-2 text-xs text-[hsl(var(--muted-foreground))]">Graph hidden</p>
+        )}
       </CardHeader>
     </Card>
   );
