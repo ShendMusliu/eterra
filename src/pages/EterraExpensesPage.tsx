@@ -934,46 +934,26 @@ export default function EterraExpensesPage() {
               ) : toBePrinted.length === 0 ? (
                 <p className="text-sm text-[hsl(var(--muted-foreground))]">Nothing waiting to be printed.</p>
               ) : (
-                <>
-                  <div className="space-y-3 md:hidden">
-                    {toBePrinted.slice(0, 8).map((sale) => (
-                      <div key={sale.id} className="rounded-lg border border-[hsl(var(--border))] bg-[hsl(var(--card))]/50 p-3">
-                        <div className="flex items-center justify-between text-xs text-[hsl(var(--muted-foreground))]">
-                          <span>{formatDate(sale.timestamp)}</span>
-                          <span className="uppercase tracking-[0.1em]">{sale.saleType}</span>
-                        </div>
-                        <p className="mt-1 text-sm font-semibold text-[hsl(var(--foreground))]">{sale.description}</p>
-                        <p className="text-sm">{formatCurrency(sale.netAfterShipping)}</p>
-                        <p className="text-xs text-[hsl(var(--muted-foreground))]">Logged by {sale.recordedByName}</p>
+                <div className="grid gap-3 md:grid-cols-2">
+                  {toBePrinted.slice(0, 8).map((sale) => (
+                    <div
+                      key={sale.id}
+                      className="h-full rounded-lg border border-[hsl(var(--border))] bg-[hsl(var(--card))]/60 p-3"
+                    >
+                      <div className="flex items-center justify-between text-xs text-[hsl(var(--muted-foreground))]">
+                        <span>{formatDate(sale.timestamp)}</span>
+                        <span className="uppercase tracking-[0.1em]">{sale.saleType}</span>
                       </div>
-                    ))}
-                  </div>
-
-                  <div className="hidden md:block w-full max-w-full overflow-x-auto">
-                    <table className="w-full min-w-[640px] text-sm table-fixed">
-                      <thead>
-                        <tr className="text-left text-[hsl(var(--muted-foreground))]">
-                          <th className="pb-2">Description</th>
-                          <th className="pb-2">Sale type</th>
-                          <th className="pb-2">Net</th>
-                          <th className="pb-2">Logged by</th>
-                          <th className="pb-2">When</th>
-                        </tr>
-                      </thead>
-                      <tbody className="divide-y divide-[hsl(var(--border))]">
-                        {toBePrinted.slice(0, 8).map((sale) => (
-                          <tr key={sale.id}>
-                            <td className="py-2 font-medium text-[hsl(var(--foreground))] break-words">{sale.description}</td>
-                            <td className="py-2 break-words">{sale.saleType}</td>
-                            <td className="py-2 break-words">{formatCurrency(sale.netAfterShipping)}</td>
-                            <td className="py-2 break-words">{sale.recordedByName}</td>
-                            <td className="py-2 text-[hsl(var(--muted-foreground))] break-words">{formatDate(sale.timestamp)}</td>
-                          </tr>
-                        ))}
-                      </tbody>
-                    </table>
-                  </div>
-                </>
+                      <p className="mt-1 text-sm font-semibold text-[hsl(var(--foreground))] break-words">
+                        {sale.description}
+                      </p>
+                      <p className="text-sm font-medium">{formatCurrency(sale.netAfterShipping)}</p>
+                      <p className="text-xs text-[hsl(var(--muted-foreground))] break-words">
+                        Logged by {sale.recordedByName}
+                      </p>
+                    </div>
+                  ))}
+                </div>
               )}
             </CardContent>
           </Card>
