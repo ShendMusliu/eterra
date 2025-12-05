@@ -709,7 +709,7 @@ export default function EterraExpensesPage() {
           </section>
         )}
 
-        <section className="grid gap-6 lg:grid-cols-[1.1fr_0.9fr]">
+        <section className="grid gap-6 md:grid-cols-2">
           <Card className="shadow-lg">
             <CardHeader>
               <CardTitle>Log sale or receivable</CardTitle>
@@ -836,104 +836,63 @@ export default function EterraExpensesPage() {
             </CardContent>
           </Card>
 
-          <div className="space-y-6">
-            <Card className="shadow-lg">
-              <CardHeader>
-                <CardTitle>Log purchase paid by eterra</CardTitle>
-                <CardDescription>Track supplies bought directly from the cash box.</CardDescription>
-              </CardHeader>
-              <CardContent>
-                <form className="space-y-4" onSubmit={handleAddPurchase}>
-                  <div className="space-y-2">
-                    <Label htmlFor="purchase-timestamp">Date & time</Label>
-                    <Input
-                      id="purchase-timestamp"
-                      type="datetime-local"
-                      value={purchaseForm.timestamp}
-                      onChange={(event) => setPurchaseForm((current) => ({ ...current, timestamp: event.target.value }))}
-                      required
-                    />
-                  </div>
-                  <div className="space-y-2">
-                    <Label htmlFor="purchase-description">Description</Label>
-                    <Input
-                      id="purchase-description"
-                      placeholder="Packaging, filament, shipping labels, etc."
-                      value={purchaseForm.description}
-                      onChange={(event) => setPurchaseForm((current) => ({ ...current, description: event.target.value }))}
-                    />
-                  </div>
-                  <div className="space-y-2">
-                    <Label htmlFor="purchase-amount">Amount (EUR)</Label>
-                    <Input
-                      id="purchase-amount"
-                      type="number"
-                      min="0"
-                      step="0.01"
-                      value={purchaseForm.amount}
-                      onChange={(event) => setPurchaseForm((current) => ({ ...current, amount: event.target.value }))}
-                      required
-                    />
-                  </div>
-                  <div className="space-y-2">
-                    <Label htmlFor="purchase-notes">Notes (optional)</Label>
-                    <textarea
-                      id="purchase-notes"
-                      className="min-h-[80px] w-full rounded-md border border-[hsl(var(--border))] bg-transparent px-3 py-2 text-sm"
-                      placeholder="Supplier, receipt link, justification"
-                      value={purchaseForm.notes}
-                      onChange={(event) => setPurchaseForm((current) => ({ ...current, notes: event.target.value }))}
-                    />
-                  </div>
-                  <Button type="submit" className="w-full">
-                    Save Purchase
-                  </Button>
-                </form>
-              </CardContent>
-            </Card>
-
-            <Card className="border-dashed">
-              <CardHeader>
-                <CardTitle>To be printed</CardTitle>
-                <CardDescription>Jobs queued for printing.</CardDescription>
-              </CardHeader>
-              <CardContent>
-                {loading ? (
-                  <p className="text-sm text-[hsl(var(--muted-foreground))]">Loading...</p>
-                ) : toBePrinted.length === 0 ? (
-                  <p className="text-sm text-[hsl(var(--muted-foreground))]">Nothing waiting to be printed.</p>
-                ) : (
-                  <div className="overflow-x-auto">
-                    <table className="min-w-[640px] w-full text-sm">
-                      <thead>
-                        <tr className="text-left text-[hsl(var(--muted-foreground))]">
-                          <th className="pb-2">Description</th>
-                          <th className="pb-2">Sale type</th>
-                          <th className="pb-2">Net</th>
-                          <th className="pb-2">Logged by</th>
-                          <th className="pb-2">When</th>
-                        </tr>
-                      </thead>
-                      <tbody className="divide-y divide-[hsl(var(--border))]">
-                        {toBePrinted.slice(0, 8).map((sale) => (
-                          <tr key={sale.id}>
-                            <td className="py-2 font-medium text-[hsl(var(--foreground))]">{sale.description}</td>
-                            <td className="py-2">{sale.saleType}</td>
-                            <td className="py-2">{formatCurrency(sale.netAfterShipping)}</td>
-                            <td className="py-2">{sale.recordedByName}</td>
-                            <td className="py-2 text-[hsl(var(--muted-foreground))]">{formatDate(sale.timestamp)}</td>
-                          </tr>
-                        ))}
-                      </tbody>
-                    </table>
-                  </div>
-                )}
-              </CardContent>
-            </Card>
-          </div>
+          <Card className="shadow-lg">
+            <CardHeader>
+              <CardTitle>Log purchase paid by eterra</CardTitle>
+              <CardDescription>Track supplies bought directly from the cash box.</CardDescription>
+            </CardHeader>
+            <CardContent>
+              <form className="space-y-4" onSubmit={handleAddPurchase}>
+                <div className="space-y-2">
+                  <Label htmlFor="purchase-timestamp">Date & time</Label>
+                  <Input
+                    id="purchase-timestamp"
+                    type="datetime-local"
+                    value={purchaseForm.timestamp}
+                    onChange={(event) => setPurchaseForm((current) => ({ ...current, timestamp: event.target.value }))}
+                    required
+                  />
+                </div>
+                <div className="space-y-2">
+                  <Label htmlFor="purchase-description">Description</Label>
+                  <Input
+                    id="purchase-description"
+                    placeholder="Packaging, filament, shipping labels, etc."
+                    value={purchaseForm.description}
+                    onChange={(event) => setPurchaseForm((current) => ({ ...current, description: event.target.value }))}
+                  />
+                </div>
+                <div className="space-y-2">
+                  <Label htmlFor="purchase-amount">Amount (EUR)</Label>
+                  <Input
+                    id="purchase-amount"
+                    type="number"
+                    min="0"
+                    step="0.01"
+                    value={purchaseForm.amount}
+                    onChange={(event) => setPurchaseForm((current) => ({ ...current, amount: event.target.value }))}
+                    required
+                  />
+                </div>
+                <div className="space-y-2">
+                  <Label htmlFor="purchase-notes">Notes (optional)</Label>
+                  <textarea
+                    id="purchase-notes"
+                    className="min-h-[80px] w-full rounded-md border border-[hsl(var(--border))] bg-transparent px-3 py-2 text-sm"
+                    placeholder="Supplier, receipt link, justification"
+                    value={purchaseForm.notes}
+                    onChange={(event) => setPurchaseForm((current) => ({ ...current, notes: event.target.value }))}
+                  />
+                </div>
+                <Button type="submit" className="w-full">
+                  Save Purchase
+                </Button>
+              </form>
+            </CardContent>
+          </Card>
         </section>
 
-        <section className="grid w-full gap-6 lg:grid-cols-2">
+        <section className="grid w-full gap-6 md:grid-cols-2">
           <Card className="shadow-sm w-full">
             <CardHeader>
               <CardTitle>Largest recorded sale</CardTitle>
@@ -960,6 +919,61 @@ export default function EterraExpensesPage() {
                 <p className="rounded-md border border-dashed border-[hsl(var(--border))] p-3 text-sm text-[hsl(var(--muted-foreground))]">
                   Log a sale to highlight it here.
                 </p>
+              )}
+            </CardContent>
+          </Card>
+
+          <Card className="border-dashed">
+            <CardHeader>
+              <CardTitle>To be printed</CardTitle>
+              <CardDescription>Jobs queued for printing.</CardDescription>
+            </CardHeader>
+            <CardContent>
+              {loading ? (
+                <p className="text-sm text-[hsl(var(--muted-foreground))]">Loading...</p>
+              ) : toBePrinted.length === 0 ? (
+                <p className="text-sm text-[hsl(var(--muted-foreground))]">Nothing waiting to be printed.</p>
+              ) : (
+                <>
+                  <div className="space-y-3 md:hidden">
+                    {toBePrinted.slice(0, 8).map((sale) => (
+                      <div key={sale.id} className="rounded-lg border border-[hsl(var(--border))] bg-[hsl(var(--card))]/50 p-3">
+                        <div className="flex items-center justify-between text-xs text-[hsl(var(--muted-foreground))]">
+                          <span>{formatDate(sale.timestamp)}</span>
+                          <span className="uppercase tracking-[0.1em]">{sale.saleType}</span>
+                        </div>
+                        <p className="mt-1 text-sm font-semibold text-[hsl(var(--foreground))]">{sale.description}</p>
+                        <p className="text-sm">{formatCurrency(sale.netAfterShipping)}</p>
+                        <p className="text-xs text-[hsl(var(--muted-foreground))]">Logged by {sale.recordedByName}</p>
+                      </div>
+                    ))}
+                  </div>
+
+                  <div className="hidden md:block w-full max-w-full overflow-x-auto">
+                    <table className="w-full min-w-[640px] text-sm table-fixed">
+                      <thead>
+                        <tr className="text-left text-[hsl(var(--muted-foreground))]">
+                          <th className="pb-2">Description</th>
+                          <th className="pb-2">Sale type</th>
+                          <th className="pb-2">Net</th>
+                          <th className="pb-2">Logged by</th>
+                          <th className="pb-2">When</th>
+                        </tr>
+                      </thead>
+                      <tbody className="divide-y divide-[hsl(var(--border))]">
+                        {toBePrinted.slice(0, 8).map((sale) => (
+                          <tr key={sale.id}>
+                            <td className="py-2 font-medium text-[hsl(var(--foreground))] break-words">{sale.description}</td>
+                            <td className="py-2 break-words">{sale.saleType}</td>
+                            <td className="py-2 break-words">{formatCurrency(sale.netAfterShipping)}</td>
+                            <td className="py-2 break-words">{sale.recordedByName}</td>
+                            <td className="py-2 text-[hsl(var(--muted-foreground))] break-words">{formatDate(sale.timestamp)}</td>
+                          </tr>
+                        ))}
+                      </tbody>
+                    </table>
+                  </div>
+                </>
               )}
             </CardContent>
           </Card>
