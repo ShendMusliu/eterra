@@ -17,6 +17,7 @@ export default function DashboardPage() {
   const handleOpenCalculator = () => navigate('/calculator');
   const handleOpenEterraExpenses = () => navigate('/eterra-expenses');
   const handleOpenProfile = () => navigate('/profile');
+  const handleOpenBusinessRegistry = () => navigate('/business-registry');
 
   return (
     <div className="min-h-screen bg-[hsl(var(--background))]">
@@ -80,7 +81,7 @@ export default function DashboardPage() {
 
             <Card className="hover:shadow-lg transition-shadow">
               <CardHeader>
-                <CardTitle>Privat Expenses</CardTitle>
+                <CardTitle>Private Expenses</CardTitle>
                 <CardDescription>Manage personal costs</CardDescription>
               </CardHeader>
               <CardContent className="space-y-2">
@@ -91,7 +92,7 @@ export default function DashboardPage() {
                   className="w-full bg-emerald-600 text-white hover:bg-emerald-700 border border-emerald-600"
                   onClick={handleOpenPrivateExpenses}
                 >
-                  Open Privat Expenses
+                  Open Private Expenses
                 </Button>
               </CardContent>
             </Card>
@@ -110,6 +111,24 @@ export default function DashboardPage() {
                   onClick={handleOpenCalculator}
                 >
                   Open Calculator
+                </Button>
+              </CardContent>
+            </Card>
+
+            <Card className="hover:shadow-lg transition-shadow">
+              <CardHeader>
+                <CardTitle>ARBK Data</CardTitle>
+                <CardDescription>Businesses data</CardDescription>
+              </CardHeader>
+              <CardContent className="space-y-2">
+                <p className="text-sm text-[hsl(var(--muted-foreground))]">
+                  Search, filter, sort, select rows, and export results.
+                </p>
+                <Button
+                  className="w-full bg-emerald-600 text-white hover:bg-emerald-700 border border-emerald-600"
+                  onClick={handleOpenBusinessRegistry}
+                >
+                  Open ARBK Data
                 </Button>
               </CardContent>
             </Card>

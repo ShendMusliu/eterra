@@ -8,6 +8,30 @@ import { type ClientSchema, a, defineData } from '@aws-amplify/backend';
  * - PrivateRepayment: repayments between members.
  */
 const schema = a.schema({
+  ArbkDataset: a
+    .model({
+      datasetKey: a.string().required(), // e.g. "latest"
+      fileKey: a.string().required(), // S3 key
+      fileName: a.string().required(),
+      updatedUntil: a.string(),
+      importedAt: a.datetime().required(),
+      uploadedById: a.string(),
+      uploadedByName: a.string(),
+    })
+    .identifier(['datasetKey'])
+    .authorization((allow) => [allow.authenticated()]),
+
+  ArbkBusinessNote: a
+    .model({
+      nui: a.string().required(),
+      note: a.string().required(),
+      updatedAt: a.datetime().required(),
+      updatedById: a.string(),
+      updatedByName: a.string(),
+    })
+    .identifier(['nui'])
+    .authorization((allow) => [allow.authenticated()]),
+
   EterraSale: a
     .model({
       description: a.string().required(),

@@ -12,7 +12,7 @@ export default function ProfilePage() {
   const userId = user?.id ?? 'Unknown ID';
 
   const handleChangePassword = () => navigate('/change-password');
-  const handleBack = () => navigate(-1);
+  const handleGoDashboard = () => navigate('/dashboard');
   const handleSignOut = async () => {
     await signOut();
     navigate('/login');
@@ -28,8 +28,11 @@ export default function ProfilePage() {
             <p className="text-[hsl(var(--muted-foreground))]">View your account details and security options.</p>
           </div>
           <div className="flex gap-2">
-            <Button variant="outline" onClick={handleBack}>
-              Back
+            <Button
+              className="bg-emerald-600 text-white hover:bg-emerald-700 border border-emerald-600"
+              onClick={handleGoDashboard}
+            >
+              Dashboard
             </Button>
             <Button variant="ghost" onClick={handleSignOut}>
               Sign Out

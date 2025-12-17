@@ -6,6 +6,8 @@ import PrivateExpensesPage from './pages/PrivateExpensesPage';
 import EterraExpensesPage from './pages/EterraExpensesPage';
 import ChangePasswordPage from './pages/ChangePasswordPage';
 import ProfilePage from './pages/ProfilePage';
+import BusinessDataPage from './pages/BusinessDataPage';
+import BusinessRegistryPage from './pages/BusinessRegistryPage';
 import ProtectedRoute from './components/ProtectedRoute';
 import { useAuth } from './contexts/AuthContext';
 
@@ -68,6 +70,22 @@ function App() {
           element={
             <ProtectedRoute>
               <ChangePasswordPage />
+            </ProtectedRoute>
+          }
+        />
+        <Route
+          path="/business-data"
+          element={
+            <ProtectedRoute>
+              <BusinessDataPage />
+            </ProtectedRoute>
+          }
+        />
+        <Route
+          path="/business-registry"
+          element={
+            <ProtectedRoute>
+              <BusinessRegistryPage />
             </ProtectedRoute>
           }
         />

@@ -280,10 +280,10 @@ export default function CalculatorPage() {
               </p>
             </div>
             <div className="flex items-center justify-end gap-2">
-              <Button variant="outline" onClick={() => navigate(-1)}>
-                Back
-              </Button>
-              <Button variant="ghost" onClick={() => navigate('/dashboard')}>
+              <Button
+                className="bg-emerald-600 text-white hover:bg-emerald-700 border border-emerald-600"
+                onClick={() => navigate('/dashboard')}
+              >
                 Dashboard
               </Button>
             </div>
