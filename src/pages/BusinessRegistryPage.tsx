@@ -7,7 +7,7 @@ import { Label } from '@/components/ui/label'
 import { detectDelimiter, extractDateFromFilename, parseDelimitedText, toDelimitedText } from '@/lib/delimited'
 import { phoneMatches } from '@/lib/phone'
 import { assertNoDataErrors, dataClient, ensureAuthSession } from '@/lib/api-client'
-import { getUrl, uploadData } from 'aws-amplify/storage'
+import { getUrl, remove, uploadData } from 'aws-amplify/storage'
 
 type RegistryRow = Record<string, string>
 
@@ -182,6 +182,8 @@ export default function BusinessRegistryPage() {
   const [fileText, setFileText] = useState<string | null>(null)
   const [error, setError] = useState<string | null>(null)
   const [loadingShared, setLoadingShared] = useState(false)
+  const [notesIndex, setNotesIndex] = useState<Set<string>>(new Set())
+  const [hasSearched, setHasSearched] = useState(false)
 
   const [searchForm, setSearchForm] = useState({
     businessName: '',
@@ -190,6 +192,7 @@ export default function BusinessRegistryPage() {
     phone: '',
     mainActivityCode: 'all',
     otherActivityCode: 'all',
+    onlyWithNotes: false,
     status: 'all',
     municipality: 'all',
   })
@@ -279,6 +282,7 @@ export default function BusinessRegistryPage() {
         setSourceFilename(dataset.fileName ?? null)
         setSourceUpdatedUntil(dataset.updatedUntil ?? null)
         setImportedAtIso(dataset.importedAt ?? null)
+        setHasSearched(false)
       } catch (err) {
         setError(explainBackendError(err))
       } finally {
@@ -365,12 +369,14 @@ export default function BusinessRegistryPage() {
   }, [rows])
 
   const filteredRows = useMemo(() => {
+    if (!hasSearched) return []
     const businessName = normalize(activeFilters.businessName)
     const nui = normalize(activeFilters.nui)
     const fiscal = normalize(activeFilters.fiscalNumber)
     const phone = activeFilters.phone
     const mainCode = activeFilters.mainActivityCode
     const otherCode = activeFilters.otherActivityCode
+    const onlyWithNotes = Boolean((activeFilters as any).onlyWithNotes)
     const status = activeFilters.status
     const municipality = activeFilters.municipality
 
@@ -382,6 +388,10 @@ export default function BusinessRegistryPage() {
       if (nui && !normalize(row['NUI'] ?? '').includes(nui)) return false
       if (fiscal && !normalize(row['NumriFiskal'] ?? '').includes(fiscal)) return false
       if (phone && !phoneMatches(row['Telefoni'] ?? '', phone)) return false
+      if (onlyWithNotes) {
+        const rowNui = (row['NUI'] ?? '').trim()
+        if (!rowNui || !notesIndex.has(rowNui)) return false
+      }
 
       if (mainCode !== 'all') {
         const parsed = parseActivityOption(row['AktivitetiKryesor'] ?? '')
@@ -395,7 +405,7 @@ export default function BusinessRegistryPage() {
 
       return true
     })
-  }, [rows, activeFilters])
+  }, [rows, activeFilters, hasSearched, notesIndex])
 
   const sortedRows = useMemo(() => {
     if (!sortState) return filteredRows
@@ -479,6 +489,7 @@ export default function BusinessRegistryPage() {
         const nowIso = new Date().toISOString()
         const existing = await (dataClient.models as any).ArbkDataset.get({ datasetKey: 'latest' })
         assertNoDataErrors(existing)
+        const previousFileKey = (existing.data?.fileKey as string | undefined) ?? undefined
         const upsert = existing.data
           ? await (dataClient.models as any).ArbkDataset.update({
               datasetKey: 'latest',
@@ -495,6 +506,14 @@ export default function BusinessRegistryPage() {
               importedAt: nowIso,
             })
         assertNoDataErrors(upsert)
+
+        if (previousFileKey && previousFileKey !== fileKey) {
+          try {
+            await remove({ key: previousFileKey })
+          } catch {
+            // ignore
+          }
+        }
 
         const d = delimiter ?? detectDelimiter(fileText)
         const parsed = parseDelimitedText(fileText, d)
@@ -525,6 +544,7 @@ export default function BusinessRegistryPage() {
           phone: '',
           mainActivityCode: 'all',
           otherActivityCode: 'all',
+          onlyWithNotes: false,
           status: 'all',
           municipality: 'all',
         }
@@ -599,6 +619,40 @@ export default function BusinessRegistryPage() {
   const selectedNui = (selectedRow?.NUI ?? '').trim() || null
   const selectedBusinessName = (selectedRow?.EmriBiznesit ?? '').trim()
 
+  const applySearch = () => {
+    setActiveFilters(searchForm)
+    setVisibleLimit(100)
+    setSelectedRowIds(new Set())
+    setHasSearched(true)
+  }
+
+  const loadNotesIndex = async () => {
+    if (!notesModelAvailable) return
+    try {
+      await ensureAuthSession()
+      const all = new Set<string>()
+      let nextToken: string | null | undefined = undefined
+      for (let page = 0; page < 50; page++) {
+        const result: any = await (dataClient.models as any).ArbkBusinessNote.list({ authMode: 'userPool', nextToken, limit: 1000 })
+        assertNoDataErrors(result)
+        ;(result.data ?? []).forEach((item: any) => {
+          const nui = (item?.nui ?? '').trim()
+          if (nui) all.add(nui)
+        })
+        nextToken = (result as any).nextToken
+        if (!nextToken) break
+      }
+      setNotesIndex(all)
+    } catch {
+      // ignore; indicators are optional
+    }
+  }
+
+  useEffect(() => {
+    void loadNotesIndex()
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [notesModelAvailable])
+
   const openNotes = () => {
     if (!selectedNui) return
     if (!notesModelAvailable) {
@@ -652,6 +706,7 @@ export default function BusinessRegistryPage() {
         : (dataClient.models as any).ArbkBusinessNote.create({ nui: notesNui, note: notesText, updatedAt: nowIso })
       const result = await op
       assertNoDataErrors(result)
+      await loadNotesIndex()
       closeNotes()
     } catch (err) {
       setNotesError(explainBackendError(err))
@@ -879,11 +934,19 @@ export default function BusinessRegistryPage() {
               <CardDescription>
                 {header.length === 0
                   ? 'Import a file to see results.'
+                  : !hasSearched
+                    ? 'Set filters above and press Search to view results.'
                   : `Showing ${Math.min(visibleRows.length, sortedRows.length)} of ${sortedRows.length} filtered rows (${rows.length} total).`}
               </CardDescription>
             </CardHeader>
             <CardContent className="space-y-4">
-              <div className="rounded-xl border border-[hsl(var(--border))] bg-[hsl(var(--card))] p-5">
+              <form
+                className="rounded-xl border border-[hsl(var(--border))] bg-[hsl(var(--card))] p-5"
+                onSubmit={(e) => {
+                  e.preventDefault()
+                  applySearch()
+                }}
+              >
                 <div className="grid gap-4 md:grid-cols-12">
                   <div className="space-y-2 md:col-span-6">
                     <Label htmlFor="f-business-name">Business Name</Label>
@@ -976,55 +1039,66 @@ export default function BusinessRegistryPage() {
                 <details className="mt-4 rounded-md border border-[hsl(var(--border))] bg-[hsl(var(--background))] p-3">
                   <summary className="cursor-pointer text-sm font-medium">More filters</summary>
                   <div className="mt-3 grid gap-3 md:grid-cols-2">
-                    <div className="space-y-2">
-                      <Label>Status</Label>
-                      <select
-                        className="h-10 w-full rounded-md border border-[hsl(var(--border))] bg-[hsl(var(--background))] px-3 text-sm"
-                        value={searchForm.status}
-                        onChange={(e) => setSearchForm((p) => ({ ...p, status: e.target.value }))}
-                        disabled={header.length === 0}
-                      >
-                        {statusOptions.map((v) => (
-                          <option key={v} value={v}>
-                            {v === 'all' ? 'All' : v}
-                          </option>
-                        ))}
-                      </select>
-                    </div>
+                      <div className="space-y-2">
+                        <Label>Status</Label>
+                        <select
+                          className="h-10 w-full rounded-md border border-[hsl(var(--border))] bg-[hsl(var(--background))] px-3 text-sm"
+                          value={searchForm.status}
+                          onChange={(e) => setSearchForm((p) => ({ ...p, status: e.target.value }))}
+                          disabled={header.length === 0}
+                        >
+                          {statusOptions.map((v) => (
+                            <option key={v} value={v}>
+                              {v === 'all' ? 'All' : v}
+                            </option>
+                          ))}
+                        </select>
+                      </div>
 
-                    <div className="space-y-2">
-                      <Label>Municipality</Label>
-                      <select
-                        className="h-10 w-full rounded-md border border-[hsl(var(--border))] bg-[hsl(var(--background))] px-3 text-sm"
-                        value={searchForm.municipality}
-                        onChange={(e) => setSearchForm((p) => ({ ...p, municipality: e.target.value }))}
-                        disabled={header.length === 0}
-                      >
-                        {municipalityOptions.map((v) => (
-                          <option key={v} value={v}>
-                            {v === 'all' ? 'All' : v}
-                          </option>
-                        ))}
-                      </select>
+                      <div className="space-y-2">
+                        <Label>Municipality</Label>
+                        <select
+                          className="h-10 w-full rounded-md border border-[hsl(var(--border))] bg-[hsl(var(--background))] px-3 text-sm"
+                          value={searchForm.municipality}
+                          onChange={(e) => setSearchForm((p) => ({ ...p, municipality: e.target.value }))}
+                          disabled={header.length === 0}
+                        >
+                          {municipalityOptions.map((v) => (
+                            <option key={v} value={v}>
+                              {v === 'all' ? 'All' : v}
+                            </option>
+                          ))}
+                        </select>
+                      </div>
+
+                      <div className="space-y-2">
+                        <Label>Notes</Label>
+                        <label className="flex items-center gap-2 text-sm">
+                          <input
+                            type="checkbox"
+                            className="h-4 w-4"
+                            checked={searchForm.onlyWithNotes}
+                            onChange={(e) => setSearchForm((p) => ({ ...p, onlyWithNotes: e.target.checked }))}
+                            disabled={header.length === 0}
+                          />
+                          <span>Only businesses with notes</span>
+                        </label>
+                      </div>
                     </div>
-                  </div>
-                </details>
+                  </details>
 
                 <div className="mt-4 flex flex-wrap items-center justify-between gap-2">
                   <div className="flex flex-wrap items-center gap-2">
                     <Button
                       className="w-full sm:w-auto bg-slate-900 text-white hover:bg-slate-800"
-                      onClick={() => {
-                        setActiveFilters(searchForm)
-                        setVisibleLimit(100)
-                        setSelectedRowIds(new Set())
-                      }}
+                      type="submit"
                       disabled={header.length === 0}
                     >
                       Search
                     </Button>
                     <Button
                       variant="outline"
+                      type="button"
                       onClick={() => {
                         const cleared = {
                           businessName: '',
@@ -1033,6 +1107,7 @@ export default function BusinessRegistryPage() {
                           phone: '',
                           mainActivityCode: 'all',
                           otherActivityCode: 'all',
+                          onlyWithNotes: false,
                           status: 'all',
                           municipality: 'all',
                         }
@@ -1040,23 +1115,25 @@ export default function BusinessRegistryPage() {
                         setActiveFilters(cleared)
                         setVisibleLimit(100)
                         setSelectedRowIds(new Set())
+                        setHasSearched(false)
                       }}
                       disabled={header.length === 0}
                     >
                       Clear
                     </Button>
                     <div className="text-sm text-[hsl(var(--muted-foreground))]">{selectedRowIds.size} selected</div>
-                    <Button variant="outline" onClick={openNotes} disabled={!selectedNui || selectedRowIds.size !== 1}>
+                    <Button variant="outline" type="button" onClick={openNotes} disabled={!selectedNui || selectedRowIds.size !== 1}>
                       Notes
                     </Button>
                   </div>
 
                   <div className="flex flex-wrap items-center gap-2">
-                    <Button variant="outline" onClick={() => exportRows('all')} disabled={header.length === 0}>
+                    <Button variant="outline" type="button" onClick={() => exportRows('all')} disabled={header.length === 0}>
                       Export all
                     </Button>
                     <Button
                       variant="outline"
+                      type="button"
                       onClick={() => exportRows('filtered')}
                       disabled={header.length === 0 || sortedRows.length === 0}
                     >
@@ -1064,6 +1141,7 @@ export default function BusinessRegistryPage() {
                     </Button>
                     <Button
                       variant="outline"
+                      type="button"
                       onClick={() => exportRows('selected')}
                       disabled={header.length === 0 || selectedRowIds.size === 0}
                     >
@@ -1071,7 +1149,7 @@ export default function BusinessRegistryPage() {
                     </Button>
                   </div>
                 </div>
-              </div>
+              </form>
 
               {header.length ? (
                 <div className="flex flex-wrap items-center justify-between gap-2">
@@ -1136,6 +1214,12 @@ export default function BusinessRegistryPage() {
                           Import a file to start.
                         </td>
                       </tr>
+                    ) : !hasSearched ? (
+                      <tr>
+                        <td className="px-3 py-6 text-center text-[hsl(var(--muted-foreground))]" colSpan={1 + effectiveColumns.length}>
+                          Use the filters above and press Search to show results.
+                        </td>
+                      </tr>
                     ) : visibleRows.length === 0 ? (
                       <tr>
                         <td className="px-3 py-6 text-center text-[hsl(var(--muted-foreground))]" colSpan={1 + effectiveColumns.length}>
@@ -1145,16 +1229,27 @@ export default function BusinessRegistryPage() {
                     ) : (
                       visibleRows.map((row) => {
                         const rowId = row.__id ?? ''
+                        const rowNui = (row.NUI ?? '').trim()
+                        const hasNotes = rowNui ? notesIndex.has(rowNui) : false
                         return (
                           <tr key={rowId} className="border-t border-[hsl(var(--border))] hover:bg-[hsl(var(--muted))]/10">
                             <td className="px-3 py-2 align-top">
-                              <input
-                                type="checkbox"
-                                className="h-4 w-4"
-                                checked={selectedRowIds.has(rowId)}
-                                onChange={() => toggleRowSelected(rowId)}
-                                aria-label="Select row"
-                              />
+                              <div className="flex items-center gap-2">
+                                <input
+                                  type="checkbox"
+                                  className="h-4 w-4"
+                                  checked={selectedRowIds.has(rowId)}
+                                  onChange={() => toggleRowSelected(rowId)}
+                                  aria-label="Select row"
+                                />
+                                {hasNotes ? (
+                                  <span
+                                    className="inline-block h-2.5 w-2.5 rounded-full bg-amber-400 ring-1 ring-amber-600"
+                                    title="This business has notes"
+                                    aria-label="Has notes"
+                                  />
+                                ) : null}
+                              </div>
                             </td>
                             {effectiveColumns.map((key) => (
                               <td key={key} className="px-3 py-2 align-top whitespace-nowrap">

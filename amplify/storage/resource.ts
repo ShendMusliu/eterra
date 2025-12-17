@@ -4,6 +4,6 @@ export const storage = defineStorage({
   name: 'eterra-storage',
   access: (allow) => ({
     // Amplify Storage prefixes objects by access level (e.g. public/).
-    'public/arbk/*': [allow.authenticated.to(['read', 'write'])],
+    'public/arbk/*': [allow.authenticated.to(['read', 'write', 'delete'])],
   }),
 })
