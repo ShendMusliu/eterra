@@ -917,7 +917,7 @@
         "bucket_name": "amplify-eterra-shendmusli-eterrastoragebucketbb8bd-umymlgcuygr7",
         "aws_region": "eu-central-1",
         "paths": {
-          "arbk/*": {
+          "public/arbk/*": {
             "authenticated": [
               "get",
               "list",
