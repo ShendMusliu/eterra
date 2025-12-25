@@ -9,6 +9,8 @@ import {
   signOut as amplifySignOut,
   signUp as amplifySignUp,
   confirmSignIn as amplifyConfirmSignIn,
+  resetPassword as amplifyResetPassword,
+  confirmResetPassword as amplifyConfirmResetPassword,
   type AuthUser,
   type SignInOutput,
 } from 'aws-amplify/auth';
@@ -34,6 +36,8 @@ interface AuthContextType {
   signUp: (email: string, password: string, name: string) => Promise<AuthActionResult>;
   confirmSignUp: (email: string, code: string) => Promise<AuthActionResult>;
   completeNewPassword: (newPassword: string) => Promise<AuthActionResult>;
+  requestPasswordReset: (email: string) => Promise<AuthActionResult>;
+  confirmPasswordReset: (email: string, code: string, newPassword: string) => Promise<AuthActionResult>;
   signOut: () => Promise<void>;
   isAuthenticated: boolean;
 }
@@ -248,6 +252,36 @@ export const AuthProvider = ({ children }: { children: ReactNode }) => {
     setUser(null);
   };
 
+  const requestPasswordReset = async (email: string): Promise<AuthActionResult> => {
+    try {
+      await amplifyResetPassword({ username: email });
+      return { success: true };
+    } catch (error) {
+      const errorMessage = error instanceof Error ? error.message : '';
+      const errorCode =
+        typeof error === 'object' && error !== null && 'name' in error ? String((error as { name?: string }).name) : '';
+      if (errorCode === 'UserNotFoundException' || /user.*not.*exist/i.test(errorMessage)) {
+        return { success: false, error: 'This email is not registered.' };
+      }
+      const message = errorMessage || 'Unable to send reset code.';
+      return { success: false, error: message };
+    }
+  };
+
+  const confirmPasswordReset = async (
+    email: string,
+    code: string,
+    newPassword: string
+  ): Promise<AuthActionResult> => {
+    try {
+      await amplifyConfirmResetPassword({ username: email, confirmationCode: code, newPassword });
+      return { success: true };
+    } catch (error) {
+      const message = error instanceof Error ? error.message : 'Unable to reset password.';
+      return { success: false, error: message };
+    }
+  };
+
   return (
     <AuthContext.Provider
       value={{
@@ -258,6 +292,8 @@ export const AuthProvider = ({ children }: { children: ReactNode }) => {
         signUp,
         confirmSignUp,
         completeNewPassword,
+        requestPasswordReset,
+        confirmPasswordReset,
         signOut,
         isAuthenticated: !!user,
       }}
