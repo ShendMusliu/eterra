@@ -360,7 +360,8 @@ export default function EterraExpensesPage() {
         !query ||
         sale.description.toLowerCase().includes(query) ||
         sale.recordedByName.toLowerCase().includes(query) ||
-        sale.saleType.toLowerCase().includes(query);
+        sale.saleType.toLowerCase().includes(query) ||
+        (sale.notes ? sale.notes.toLowerCase().includes(query) : false);
       return matchesStatus && matchesQuery;
     });
   }, [sales, saleStatusFilter, saleSearch]);
@@ -374,7 +375,8 @@ export default function EterraExpensesPage() {
       if (!query) return true;
       return (
         purchase.description.toLowerCase().includes(query) ||
-        purchase.recordedByName.toLowerCase().includes(query)
+        purchase.recordedByName.toLowerCase().includes(query) ||
+        (purchase.notes ? purchase.notes.toLowerCase().includes(query) : false)
       );
     });
   }, [purchases, purchaseSearch]);
@@ -991,7 +993,7 @@ export default function EterraExpensesPage() {
                   <Input
                     id="sale-search"
                     className="mt-1"
-                    placeholder="Description, channel, recorder"
+                    placeholder="Description, channel, recorder, notes"
                     value={saleSearch}
                     onChange={(e) => setSaleSearch(e.target.value)}
                   />
@@ -1197,7 +1199,7 @@ export default function EterraExpensesPage() {
                 <Input
                   id="purchase-search"
                   className="mt-1"
-                  placeholder="Description or recorder"
+                  placeholder="Description, recorder, notes"
                   value={purchaseSearch}
                   onChange={(e) => setPurchaseSearch(e.target.value)}
                 />
@@ -1313,7 +1315,6 @@ function MetricCard({
     </Card>
   );
 }
-
 
 
 
